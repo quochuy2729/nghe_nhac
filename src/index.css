@@ -1,0 +1,46 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  background: #121212;
+  color: #fff;
+  overscroll-behavior-y: none;
+}
+
+body {
+  @apply font-sans antialiased;
+  -webkit-text-size-adjust: 100%;
+}
+
+button {
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+}
+
+@layer components {
+  .icon-btn {
+    @apply inline-flex min-h-touch min-w-touch items-center justify-center rounded-full text-white/90 transition active:scale-95 disabled:opacity-40;
+  }
+  .chip {
+    @apply inline-flex min-h-[36px] items-center rounded-full bg-surface-2 px-4 text-sm font-medium text-white transition active:scale-95;
+  }
+  .chip-active {
+    @apply bg-accent text-black;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+}

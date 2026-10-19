@@ -56,7 +56,7 @@ playlist_tracks(playlist_id uuid, track_id text, position int, pk(playlist_id, p
 - Bài đã tải offline lưu ở IndexedDB từng máy (không đồng bộ blob), danh sách "đã tải" là cục bộ.
 
 ## 6. Kế hoạch triển khai (tick khi xong)
-- [ ] **P0 Khung**: Vite + React + TS + Tailwind + PWA manifest/icon, router (Home, Search, Library, Player, Lyrics, Settings), GitHub Actions deploy Pages, `.env.example`.
+- [x] **P0 Khung**: Vite + React + TS + Tailwind + PWA manifest/icon, router (Home, Search, Library, Player, Lyrics, Settings), GitHub Actions deploy Pages, `.env.example`.
 - [ ] **P1 Player core**: audio engine 1 `<audio>`, queue, next/prev (prev: >3s thì về đầu bài), shuffle Fisher–Yates giữ bài hiện tại và khôi phục thứ tự khi tắt, repeat off/all/one, seek bar, mini-player + full player, Media Session. Test unit.
 - [ ] **P2 Providers + Search**: Jamendo, Audius, Local; tab nguồn trong Search; hiển thị badge "Tải được".
 - [ ] **P3 Auth + Library**: Supabase auth, liked, playlist CRUD, thêm vào hàng đợi; migration SQL trong `supabase/migrations`.
