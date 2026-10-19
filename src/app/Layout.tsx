@@ -1,5 +1,6 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { HomeIcon, LibraryIcon, SearchIcon } from '@/components/Icons';
+import { MiniPlayer } from '@/features/player/MiniPlayer';
 
 const tabs = [
   { to: '/', label: 'Trang chủ', icon: HomeIcon, end: true },
@@ -13,6 +14,7 @@ export function Layout() {
       <main className="flex-1 overflow-y-auto pb-[calc(140px+env(safe-area-inset-bottom))] pt-safe-t">
         <Outlet />
       </main>
+      <MiniPlayer />
       <nav
         aria-label="Điều hướng chính"
         className="fixed inset-x-0 bottom-0 z-30 bg-gradient-to-t from-black via-black/95 to-black/70 pb-safe-b"
