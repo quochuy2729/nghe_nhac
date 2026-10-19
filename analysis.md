@@ -43,6 +43,7 @@ interface Track {
 - Đồng bộ: `requestAnimationFrame` đọc `audio.currentTime`, binary search dòng hiện tại; dòng active tô sáng + phóng nhẹ, tự `scrollIntoView({block:'center', behavior:'smooth'})`; người dùng cuộn tay thì tạm dừng auto-scroll 3s. Chạm vào một dòng → seek tới thời điểm đó.
 - Màn Lyrics full-screen, nền lấy màu chủ đạo từ artwork (canvas sample).
 - Cache lyrics trong IndexedDB theo trackId (chỉ trên máy, không lên server).
+- **Đã triển khai**: tự cuộn bằng `container.scrollTo` căn giữa (tương đương `scrollIntoView({block:'center'})` nhưng không kéo cả trang khi lời nằm trong thẻ xem trước ở màn Đang phát). "Không tìm thấy" được cache 3 ngày rồi thử lại. Bài demo dùng LRC giả tự viết, không gọi LRCLIB.
 
 ## 5. Dữ liệu & tài khoản (Supabase)
 ```sql
@@ -54,15 +55,18 @@ playlist_tracks(playlist_id uuid, track_id text, position int, pk(playlist_id, p
 ```
 - RLS: mọi bảng user-scoped chỉ `auth.uid() = user_id`. `tracks` là cache metadata: insert/select cho user đã đăng nhập; track `local` có `storage_path` chỉ chủ sở hữu đọc được (bucket `user-audio` private, path `{uid}/...`).
 - Bài đã tải offline lưu ở IndexedDB từng máy (không đồng bộ blob), danh sách "đã tải" là cục bộ.
+- **Đã triển khai** (`supabase/migrations/20261019000000_init.sql`): thêm bảng `user_files(user_id, track_id, storage_path, size_bytes)` để mỗi người có đường dẫn file riêng — id track local là hash nội dung file, hai người có cùng file vẫn không đè nhau. `tracks` chỉ cho `insert … on conflict do nothing` (không update/delete) nên không ai sửa được metadata của người khác. Thêm RPC `append_playlist_tracks` / `replace_playlist_tracks` (security invoker) để ghi thứ tự playlist nguyên tử. RLS đã được kiểm thử bằng PGlite.
+- Chưa đăng nhập / chưa cấu hình Supabase → **chế độ khách**: thư viện lưu localStorage; lần đầu đăng nhập sẽ tự chuyển lên tài khoản.
+- Đồng bộ 2 máy: tải lại thư viện khi app quay lại foreground, khi có mạng lại (không dùng Realtime để đỡ tốn pin).
 
 ## 6. Kế hoạch triển khai (tick khi xong)
-- [ ] **P0 Khung**: Vite + React + TS + Tailwind + PWA manifest/icon, router (Home, Search, Library, Player, Lyrics, Settings), GitHub Actions deploy Pages, `.env.example`.
-- [ ] **P1 Player core**: audio engine 1 `<audio>`, queue, next/prev (prev: >3s thì về đầu bài), shuffle Fisher–Yates giữ bài hiện tại và khôi phục thứ tự khi tắt, repeat off/all/one, seek bar, mini-player + full player, Media Session. Test unit.
-- [ ] **P2 Providers + Search**: Jamendo, Audius, Local; tab nguồn trong Search; hiển thị badge "Tải được".
-- [ ] **P3 Auth + Library**: Supabase auth, liked, playlist CRUD, thêm vào hàng đợi; migration SQL trong `supabase/migrations`.
-- [ ] **P4 Offline**: tải về IndexedDB có tiến độ, phát từ blob khi offline, quản lý dung lượng, `storage.persist()`; service worker cache app shell.
-- [ ] **P5 Lyrics**: client LRCLIB, parser LRC + test, LyricsView synced, chạm-để-seek, cache.
-- [ ] **P6 Hoàn thiện**: skeleton loading, empty states, xử lý lỗi mạng, a11y, kiểm tra trên viewport iPhone 12 Pro (390×844) và Android; README hướng dẫn cài lên màn hình chính.
+- [x] **P0 Khung**: Vite + React + TS + Tailwind + PWA manifest/icon, router (Home, Search, Library, Player, Lyrics, Settings), GitHub Actions deploy Pages, `.env.example`.
+- [x] **P1 Player core**: audio engine 1 `<audio>`, queue, next/prev (prev: >3s thì về đầu bài), shuffle Fisher–Yates giữ bài hiện tại và khôi phục thứ tự khi tắt, repeat off/all/one, seek bar, mini-player + full player, Media Session. Test unit.
+- [x] **P2 Providers + Search**: Jamendo, Audius, Local; tab nguồn trong Search; hiển thị badge "Tải được".
+- [x] **P3 Auth + Library**: Supabase auth, liked, playlist CRUD, thêm vào hàng đợi; migration SQL trong `supabase/migrations`.
+- [x] **P4 Offline**: tải về IndexedDB có tiến độ, phát từ blob khi offline, quản lý dung lượng, `storage.persist()`; service worker cache app shell.
+- [x] **P5 Lyrics**: client LRCLIB, parser LRC + test, LyricsView synced, chạm-để-seek, cache.
+- [x] **P6 Hoàn thiện**: skeleton loading, empty states, xử lý lỗi mạng, a11y, kiểm tra trên viewport iPhone 12 Pro (390×844) và Android; README hướng dẫn cài lên màn hình chính.
 
 ## 7. Tiêu chí nghiệm thu
 - Cài PWA lên iPhone và Android; đăng nhập trên máy A, like bài → thấy trên máy B.
@@ -72,4 +76,12 @@ playlist_tracks(playlist_id uuid, track_id text, position int, pk(playlist_id, p
 - Lyrics: lệch ≤ 300ms so với audio, chạm dòng thì seek đúng.
 
 ## 8. Câu hỏi mở
-- Chủ repo cần tạo Supabase project + Jamendo client_id và điền vào `.env` / GitHub Secrets (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_JAMENDO_CLIENT_ID`).
+- Chủ repo cần tạo Supabase project + Jamendo client_id và điền vào `.env` / GitHub Secrets (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_JAMENDO_CLIENT_ID`). Hướng dẫn từng bước ở README.
+- **Chưa có key → mock provider**: không có `VITE_JAMENDO_CLIENT_ID` thì tab Jamendo được thay bằng **Demo** (6 bài nhạc tổng hợp bằng WAV ngay trên trình duyệt, lời LRC giả tự viết, cho phép tải để thử offline). Không có Supabase thì thư viện chạy **chế độ khách** (localStorage), lần đầu đăng nhập sẽ tự chuyển lên tài khoản. Khi đã có Jamendo key, có nên giữ tab Demo không? (hiện: ẩn Demo).
+- **Chưa kiểm thử với API thật**: sandbox phát triển chặn mạng ra ngoài nên Jamendo/Audius/LRCLIB/Supabase mới được kiểm tra bằng test với dữ liệu giả (mapping, chọn bản lyric, RLS chạy trên PGlite). Cần chạy thử thật sau khi điền key.
+- **CORS khi tải về**: link `audiodownload` của Jamendo và `/download` của Audius có thể không trả header CORS → trình duyệt không lưu blob được. App báo lỗi rõ ràng; nếu thường xuyên lỗi, phương án: Supabase Edge Function làm proxy tải (chỉ cho track `downloadable`).
+- **Schema**: thêm bảng `user_files` (đường dẫn Storage theo từng người) thay cho chỉ dùng `tracks.storage_path` — xem §5. Cột `tracks.storage_path` giữ lại để khớp phân tích nhưng app không ghi.
+- **`music-metadata-browser`** đã ngừng phát triển; dùng `music-metadata` (cùng tác giả, bản kế nhiệm, có `parseBlob` cho trình duyệt), lazy-load nên không làm nặng bundle chính.
+- **Đồng bộ**: tải lại khi app vào foreground/có mạng, không dùng Supabase Realtime. Muốn cập nhật tức thì khi cả hai máy cùng mở thì có thể bật Realtime cho `liked_tracks`/`playlist_tracks`.
+- **iOS lock screen**: không đăng ký `seekbackward/seekforward` để iOS hiện nút bài trước/sau. Cần ghi lại kết quả thực tế trên iPhone 12 Pro (iOS ≥ 16.4, chế độ standalone) — chưa có thiết bị thật trong sandbox.
+- **Poco X8 Pro**: kiểm tra layout ở viewport 412×915 (giả định, chưa có thông số chính xác) và 390×844 (iPhone 12 Pro): không tràn ngang, vùng chạm ≥ 44px. MIUI/HyperOS có thể diệt Chrome nền — README hướng dẫn tắt tiết kiệm pin cho Chrome.
