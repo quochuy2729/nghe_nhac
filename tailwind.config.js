@@ -4,7 +4,7 @@ export default {
   theme: {
     extend: {
       colors: {
-        base: '#121212',
+        canvas: '#121212',
         surface: { DEFAULT: '#181818', 2: '#242424', 3: '#2a2a2a' },
         accent: { DEFAULT: '#2dd4bf', dim: '#14b8a6' },
         muted: '#a7a7a7',

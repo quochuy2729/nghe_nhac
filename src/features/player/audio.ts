@@ -16,7 +16,6 @@ export function getAudio(): HTMLAudioElement {
     el.preload = 'auto';
     el.setAttribute('playsinline', '');
     el.setAttribute('webkit-playsinline', '');
-    el.crossOrigin = 'anonymous';
     document.body.appendChild(el);
   }
   return el;

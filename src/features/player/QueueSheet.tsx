@@ -11,7 +11,7 @@ export function QueueSheet({ open, onClose }: { open: boolean; onClose: () => vo
   const next = queue.items.slice(queue.index + 1);
 
   return (
-    <div role="dialog" aria-modal="true" aria-label="Hàng đợi" className="fixed inset-0 z-50 flex flex-col bg-base pt-safe-t">
+    <div role="dialog" aria-modal="true" aria-label="Hàng đợi" className="fixed inset-0 z-50 flex flex-col bg-canvas pt-safe-t">
       <header className="flex items-center justify-between px-4 py-2">
         <h2 className="text-lg font-bold">Hàng đợi</h2>
         <button type="button" onClick={onClose} aria-label="Đóng hàng đợi" className="icon-btn">

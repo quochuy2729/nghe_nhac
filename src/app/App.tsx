@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 import { HashRouter, Route, Routes } from 'react-router-dom';
 import { initPlayer } from '@/features/player/store';
+import { TrackMenu } from '@/features/library/TrackMenu';
+import { Toast } from '@/components/Toast';
 import { Layout } from './Layout';
 import { HomePage } from '@/pages/HomePage';
 import { SearchPage } from '@/pages/SearchPage';
@@ -24,6 +26,8 @@ export function App() {
         <Route path="player" element={<PlayerPage />} />
         <Route path="lyrics" element={<LyricsPage />} />
       </Routes>
+      <TrackMenu />
+      <Toast />
     </HashRouter>
   );
 }
