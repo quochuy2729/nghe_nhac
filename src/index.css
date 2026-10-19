@@ -21,6 +21,15 @@ body {
   -webkit-text-size-adjust: 100%;
 }
 
+:focus-visible {
+  outline: 2px solid #2dd4bf;
+  outline-offset: 2px;
+}
+
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
 button {
   -webkit-user-select: none;
   user-select: none;
@@ -32,7 +41,7 @@ button {
     @apply inline-flex min-h-touch min-w-touch items-center justify-center rounded-full text-white/90 transition active:scale-95 disabled:opacity-40;
   }
   .chip {
-    @apply inline-flex min-h-[36px] items-center rounded-full bg-surface-2 px-4 text-sm font-medium text-white transition active:scale-95;
+    @apply inline-flex min-h-touch items-center justify-center rounded-full bg-surface-2 px-4 text-sm font-medium text-white transition active:scale-95;
   }
   .chip-active {
     @apply bg-accent text-black;
@@ -93,4 +102,13 @@ button {
 }
 @media (prefers-reduced-motion: reduce) {
   .eq-bar { animation: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
 }

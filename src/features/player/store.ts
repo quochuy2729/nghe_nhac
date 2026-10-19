@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware';
 import type { Track } from '@/providers/types';
 import * as Q from './queue';
 import { getAudio, unlockAudio } from './audio';
@@ -10,6 +10,43 @@ import {
   setMediaPlaybackState,
   setMediaPosition,
 } from './mediaSession';
+
+const safeStorage: StateStorage = {
+  getItem: (k) => {
+    try {
+      return localStorage.getItem(k);
+    } catch {
+      return null;
+    }
+  },
+  setItem: (k, v) => {
+    try {
+      localStorage.setItem(k, v);
+    } catch {
+      // hết dung lượng: bỏ qua, hàng đợi chỉ không được khôi phục lần sau
+    }
+  },
+  removeItem: (k) => {
+    try {
+      localStorage.removeItem(k);
+    } catch {
+      // ignore
+    }
+  },
+};
+
+const MAX_INLINE_ART = 4096;
+
+function slimItem(it: Q.QueueItem): Q.QueueItem {
+  const art = it.track.artworkUrl;
+  if (!art || !art.startsWith('data:') || art.length <= MAX_INLINE_ART) return it;
+  return { ...it, track: { ...it.track, artworkUrl: undefined } };
+}
+
+function slimQueue(q: Q.QueueState): Q.QueueState {
+  const map = new Map(q.original.map((it) => [it.uid, slimItem(it)]));
+  return { ...q, original: q.original.map((it) => map.get(it.uid)!), items: q.items.map((it) => map.get(it.uid) ?? slimItem(it)) };
+}
 
 /** Trạng thái hàng đợi — được lưu localStorage để mở lại app vẫn còn. */
 interface QueueStore {
@@ -26,7 +63,13 @@ export const useQueueStore = create<QueueStore>()(
       context: '',
       setQueue: (queue, context) => set((s) => ({ queue, context: context ?? s.context })),
     }),
-    { name: 'nn-queue', version: 1 },
+    {
+      name: 'nn-queue',
+      version: 1,
+      storage: createJSONStorage(() => safeStorage),
+      // Ảnh bìa dạng data: lớn (file local) có thể làm đầy localStorage → bỏ khi lưu.
+      partialize: (s) => ({ queue: slimQueue(s.queue), context: s.context }) as QueueStore,
+    },
   ),
 );
 

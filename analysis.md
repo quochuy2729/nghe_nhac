@@ -66,7 +66,7 @@ playlist_tracks(playlist_id uuid, track_id text, position int, pk(playlist_id, p
 - [x] **P3 Auth + Library**: Supabase auth, liked, playlist CRUD, thêm vào hàng đợi; migration SQL trong `supabase/migrations`.
 - [x] **P4 Offline**: tải về IndexedDB có tiến độ, phát từ blob khi offline, quản lý dung lượng, `storage.persist()`; service worker cache app shell.
 - [x] **P5 Lyrics**: client LRCLIB, parser LRC + test, LyricsView synced, chạm-để-seek, cache.
-- [ ] **P6 Hoàn thiện**: skeleton loading, empty states, xử lý lỗi mạng, a11y, kiểm tra trên viewport iPhone 12 Pro (390×844) và Android; README hướng dẫn cài lên màn hình chính.
+- [x] **P6 Hoàn thiện**: skeleton loading, empty states, xử lý lỗi mạng, a11y, kiểm tra trên viewport iPhone 12 Pro (390×844) và Android; README hướng dẫn cài lên màn hình chính.
 
 ## 7. Tiêu chí nghiệm thu
 - Cài PWA lên iPhone và Android; đăng nhập trên máy A, like bài → thấy trên máy B.
@@ -76,4 +76,12 @@ playlist_tracks(playlist_id uuid, track_id text, position int, pk(playlist_id, p
 - Lyrics: lệch ≤ 300ms so với audio, chạm dòng thì seek đúng.
 
 ## 8. Câu hỏi mở
-- Chủ repo cần tạo Supabase project + Jamendo client_id và điền vào `.env` / GitHub Secrets (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_JAMENDO_CLIENT_ID`).
+- Chủ repo cần tạo Supabase project + Jamendo client_id và điền vào `.env` / GitHub Secrets (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_JAMENDO_CLIENT_ID`). Hướng dẫn từng bước ở README.
+- **Chưa có key → mock provider**: không có `VITE_JAMENDO_CLIENT_ID` thì tab Jamendo được thay bằng **Demo** (6 bài nhạc tổng hợp bằng WAV ngay trên trình duyệt, lời LRC giả tự viết, cho phép tải để thử offline). Không có Supabase thì thư viện chạy **chế độ khách** (localStorage), lần đầu đăng nhập sẽ tự chuyển lên tài khoản. Khi đã có Jamendo key, có nên giữ tab Demo không? (hiện: ẩn Demo).
+- **Chưa kiểm thử với API thật**: sandbox phát triển chặn mạng ra ngoài nên Jamendo/Audius/LRCLIB/Supabase mới được kiểm tra bằng test với dữ liệu giả (mapping, chọn bản lyric, RLS chạy trên PGlite). Cần chạy thử thật sau khi điền key.
+- **CORS khi tải về**: link `audiodownload` của Jamendo và `/download` của Audius có thể không trả header CORS → trình duyệt không lưu blob được. App báo lỗi rõ ràng; nếu thường xuyên lỗi, phương án: Supabase Edge Function làm proxy tải (chỉ cho track `downloadable`).
+- **Schema**: thêm bảng `user_files` (đường dẫn Storage theo từng người) thay cho chỉ dùng `tracks.storage_path` — xem §5. Cột `tracks.storage_path` giữ lại để khớp phân tích nhưng app không ghi.
+- **`music-metadata-browser`** đã ngừng phát triển; dùng `music-metadata` (cùng tác giả, bản kế nhiệm, có `parseBlob` cho trình duyệt), lazy-load nên không làm nặng bundle chính.
+- **Đồng bộ**: tải lại khi app vào foreground/có mạng, không dùng Supabase Realtime. Muốn cập nhật tức thì khi cả hai máy cùng mở thì có thể bật Realtime cho `liked_tracks`/`playlist_tracks`.
+- **iOS lock screen**: không đăng ký `seekbackward/seekforward` để iOS hiện nút bài trước/sau. Cần ghi lại kết quả thực tế trên iPhone 12 Pro (iOS ≥ 16.4, chế độ standalone) — chưa có thiết bị thật trong sandbox.
+- **Poco X8 Pro**: kiểm tra layout ở viewport 412×915 (giả định, chưa có thông số chính xác) và 390×844 (iPhone 12 Pro): không tràn ngang, vùng chạm ≥ 44px. MIUI/HyperOS có thể diệt Chrome nền — README hướng dẫn tắt tiết kiệm pin cho Chrome.

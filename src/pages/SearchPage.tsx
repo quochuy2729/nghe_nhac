@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { CloseIcon, SearchIcon } from '@/components/Icons';
 import { TrackList } from '@/components/TrackList';
+import { TrackListSkeleton } from '@/components/Skeleton';
 import { searchSources } from '@/providers';
 import type { Track } from '@/providers/types';
 import { useDebounced } from '@/lib/useDebounced';
@@ -29,6 +30,7 @@ export function SearchPage() {
     setLoading(true);
     setError(null);
     setPage(0);
+    setTracks([]);
     const req = q ? source.search(q, 0) : (source.featured?.() ?? Promise.resolve([]));
     req
       .then((r) => {
@@ -117,8 +119,12 @@ export function SearchPage() {
           {source.id === 'local' ? 'Chưa có file nhạc nào. Bấm “Thêm file nhạc” ở trên.' : 'Không tìm thấy bài nào.'}
         </p>
       )}
-      <TrackList tracks={tracks} context={q ? `Tìm “${q}”` : `${source.label}`} />
-      {loading && <p className="py-4 text-center text-sm text-muted">Đang tải…</p>}
+      {loading && tracks.length === 0 ? (
+        <TrackListSkeleton />
+      ) : (
+        <TrackList tracks={tracks} context={q ? `Tìm “${q}”` : `${source.label}`} />
+      )}
+      {loading && tracks.length > 0 && <p className="py-4 text-center text-sm text-muted">Đang tải…</p>}
       {hasMore && !loading && (
         <div className="flex justify-center py-4">
           <button type="button" className="chip" onClick={loadMore}>

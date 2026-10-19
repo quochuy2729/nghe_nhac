@@ -8,7 +8,7 @@ export function LyricsCard({ track, color }: { track: Track; color: string }) {
     <section className="mt-6 overflow-hidden rounded-xl" style={{ backgroundColor: color }} aria-label="Xem trước lời bài hát">
       <div className="flex items-center justify-between px-4 pt-3">
         <h2 className="font-bold">Lời bài hát</h2>
-        <Link to="/lyrics" className="chip h-8 min-h-0 bg-black/30 px-3 text-xs">
+        <Link to="/lyrics" className="chip bg-black/30 px-4 text-xs">
           Mở rộng
         </Link>
       </div>

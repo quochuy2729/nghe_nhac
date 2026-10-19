@@ -6,6 +6,7 @@ import { useDownloads } from '@/features/downloads/manager';
 import { library, useLibrary } from '@/features/library/store';
 import { PlaylistCover } from '@/features/library/PlaylistPicker';
 import { hasSupabase } from '@/lib/env';
+import { TrackListSkeleton } from '@/components/Skeleton';
 
 export function LibraryPage() {
   const liked = useLibrary((s) => s.liked);
@@ -116,7 +117,7 @@ export function LibraryPage() {
           </li>
         ))}
       </ul>
-      {status === 'loading' && <p className="py-4 text-center text-sm text-muted">Đang đồng bộ…</p>}
+      {status === 'loading' && <TrackListSkeleton rows={3} />}
       {status === 'ready' && playlists.length === 0 && (
         <p className="px-4 py-6 text-center text-sm text-muted">Chưa có playlist nào. Bấm + để tạo.</p>
       )}
