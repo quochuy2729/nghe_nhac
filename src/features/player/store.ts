@@ -138,10 +138,13 @@ function applyStep(step: Q.Step) {
 
 export const player = {
   /** Phát danh sách từ vị trí `index` (gọi trực tiếp trong handler chạm). */
-  playTracks(tracks: Track[], index = 0, context = '') {
+  playTracks(tracks: Track[], index = 0, context = '', opts: { shuffle?: boolean } = {}) {
     unlockAudio();
+    if (!tracks.length) return;
     const { queue } = useQueueStore.getState();
-    const q = Q.createQueue(tracks, index, { shuffle: queue.shuffle, repeat: queue.repeat });
+    const shuffle = opts.shuffle ?? queue.shuffle;
+    const start = opts.shuffle ? Math.floor(Math.random() * tracks.length) : index;
+    const q = Q.createQueue(tracks, start, { shuffle, repeat: queue.repeat });
     useQueueStore.getState().setQueue(q, context);
     void loadCurrent(true);
   },

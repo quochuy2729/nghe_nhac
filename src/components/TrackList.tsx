@@ -17,7 +17,7 @@ export function TrackList({ tracks, context, playlistId }: { tracks: Track[]; co
             onPlay={() => player.playTracks(tracks, i, context)}
             badges={t.downloadable && t.provider !== 'local' ? <DownloadableBadge /> : null}
             right={
-              <button type="button" aria-label={`Tùy chọn cho ${t.title}`} className="icon-btn -mr-2 text-muted" onClick={() => openMenu(t, playlistId)}>
+              <button type="button" aria-label={`Tùy chọn cho ${t.title}`} className="icon-btn -mr-2 text-muted" onClick={() => openMenu(t, playlistId ? { id: playlistId, index: i } : undefined)}>
                 <MoreIcon size={20} />
               </button>
             }

@@ -54,12 +54,15 @@ playlist_tracks(playlist_id uuid, track_id text, position int, pk(playlist_id, p
 ```
 - RLS: mọi bảng user-scoped chỉ `auth.uid() = user_id`. `tracks` là cache metadata: insert/select cho user đã đăng nhập; track `local` có `storage_path` chỉ chủ sở hữu đọc được (bucket `user-audio` private, path `{uid}/...`).
 - Bài đã tải offline lưu ở IndexedDB từng máy (không đồng bộ blob), danh sách "đã tải" là cục bộ.
+- **Đã triển khai** (`supabase/migrations/20261019000000_init.sql`): thêm bảng `user_files(user_id, track_id, storage_path, size_bytes)` để mỗi người có đường dẫn file riêng — id track local là hash nội dung file, hai người có cùng file vẫn không đè nhau. `tracks` chỉ cho `insert … on conflict do nothing` (không update/delete) nên không ai sửa được metadata của người khác. Thêm RPC `append_playlist_tracks` / `replace_playlist_tracks` (security invoker) để ghi thứ tự playlist nguyên tử. RLS đã được kiểm thử bằng PGlite.
+- Chưa đăng nhập / chưa cấu hình Supabase → **chế độ khách**: thư viện lưu localStorage; lần đầu đăng nhập sẽ tự chuyển lên tài khoản.
+- Đồng bộ 2 máy: tải lại thư viện khi app quay lại foreground, khi có mạng lại (không dùng Realtime để đỡ tốn pin).
 
 ## 6. Kế hoạch triển khai (tick khi xong)
 - [x] **P0 Khung**: Vite + React + TS + Tailwind + PWA manifest/icon, router (Home, Search, Library, Player, Lyrics, Settings), GitHub Actions deploy Pages, `.env.example`.
 - [x] **P1 Player core**: audio engine 1 `<audio>`, queue, next/prev (prev: >3s thì về đầu bài), shuffle Fisher–Yates giữ bài hiện tại và khôi phục thứ tự khi tắt, repeat off/all/one, seek bar, mini-player + full player, Media Session. Test unit.
 - [x] **P2 Providers + Search**: Jamendo, Audius, Local; tab nguồn trong Search; hiển thị badge "Tải được".
-- [ ] **P3 Auth + Library**: Supabase auth, liked, playlist CRUD, thêm vào hàng đợi; migration SQL trong `supabase/migrations`.
+- [x] **P3 Auth + Library**: Supabase auth, liked, playlist CRUD, thêm vào hàng đợi; migration SQL trong `supabase/migrations`.
 - [ ] **P4 Offline**: tải về IndexedDB có tiến độ, phát từ blob khi offline, quản lý dung lượng, `storage.persist()`; service worker cache app shell.
 - [ ] **P5 Lyrics**: client LRCLIB, parser LRC + test, LyricsView synced, chạm-để-seek, cache.
 - [ ] **P6 Hoàn thiện**: skeleton loading, empty states, xử lý lỗi mạng, a11y, kiểm tra trên viewport iPhone 12 Pro (390×844) và Android; README hướng dẫn cài lên màn hình chính.

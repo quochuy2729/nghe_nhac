@@ -5,7 +5,7 @@ import { useArtworkColor } from '@/lib/color';
 import { PlayPauseButton } from './Controls';
 import { useCurrentTrack } from './hooks';
 import { player, usePlayback } from './store';
-import { LikeButton } from './slots';
+import { LikeButton } from '@/features/library/LikeButton';
 
 export function MiniPlayer() {
   const track = useCurrentTrack();

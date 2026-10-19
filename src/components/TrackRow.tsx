@@ -10,11 +10,13 @@ export function TrackRow({
   onPlay,
   right,
   badges,
+  like,
 }: {
   track: Track;
   onPlay: () => void;
   right?: ReactNode;
   badges?: ReactNode;
+  like?: ReactNode;
 }) {
   const cur = useCurrentItem();
   const isPlaying = usePlayback((s) => s.isPlaying);
@@ -36,6 +38,7 @@ export function TrackRow({
           </span>
         </span>
       </button>
+      {like}
       {right}
     </div>
   );

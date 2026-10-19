@@ -9,6 +9,9 @@ const base = process.env.VITE_BASE ?? (process.env.GITHUB_ACTIONS ? '/nghe_nhac/
 
 export default defineConfig({
   base,
+  define: {
+    __APP_VERSION__: JSON.stringify(process.env.npm_package_version ?? '0.0.0'),
+  },
   resolve: {
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
   },

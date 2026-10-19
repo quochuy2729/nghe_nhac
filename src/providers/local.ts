@@ -143,6 +143,27 @@ export async function importLocalFiles(files: File[]): Promise<ImportResult> {
 
 type RemoteUrlResolver = (track: Track) => Promise<string | null>;
 let remoteResolver: RemoteUrlResolver | null = null;
+let cloudLister: (() => Promise<Track[]>) | null = null;
+
+/** Liệt kê file đã upload lên đám mây (để máy còn lại thấy trong tab "Của tôi"). */
+export function setLocalCloudLister(fn: (() => Promise<Track[]>) | null): void {
+  cloudLister = fn;
+}
+
+async function allLocal(): Promise<Track[]> {
+  const onDevice = await tracksByProvider('local');
+  if (!cloudLister) return onDevice;
+  let cloud: Track[] = [];
+  try {
+    cloud = await cloudLister();
+  } catch {
+    // offline: chỉ hiện file trên máy
+  }
+  const byId = new Map(cloud.map((t) => [t.id, t]));
+  const merged = onDevice.map((t) => (byId.has(t.id) ? { ...t, storagePath: byId.get(t.id)!.storagePath } : t));
+  const seen = new Set(onDevice.map((t) => t.id));
+  return [...merged, ...cloud.filter((t) => !seen.has(t.id))];
+}
 
 /** Cho phép lớp cloud (Supabase Storage) cung cấp URL khi file chưa có trên máy này. */
 export function setLocalRemoteResolver(r: RemoteUrlResolver | null): void {
@@ -160,12 +181,12 @@ export const localProvider: MusicProvider = {
   id: 'local',
   label: 'Của tôi',
   async search(q) {
-    const all = await tracksByProvider('local');
+    const all = await allLocal();
     const needle = q.trim().toLowerCase();
     return needle ? all.filter((t) => `${t.title} ${t.artist} ${t.album ?? ''}`.toLowerCase().includes(needle)) : all;
   },
   async featured() {
-    return tracksByProvider('local');
+    return allLocal();
   },
   async getStreamUrl(track) {
     const url = await urlFor(track);

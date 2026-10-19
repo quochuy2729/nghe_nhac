@@ -9,7 +9,7 @@ import { SeekBar } from '@/features/player/SeekBar';
 import { QueueSheet } from '@/features/player/QueueSheet';
 import { useCurrentTrack } from '@/features/player/hooks';
 import { useQueueStore, usePlayback, player } from '@/features/player/store';
-import { LikeButton } from '@/features/player/slots';
+import { LikeButton } from '@/features/library/LikeButton';
 
 export function PlayerPage() {
   const track = useCurrentTrack();
