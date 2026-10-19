@@ -104,6 +104,7 @@ async function loadCurrent(autoplay: boolean, startAt = 0): Promise<void> {
     if (autoplay) await audio.play();
   } catch (err) {
     if (token !== loadToken) return;
+    if (autoplay && skipUnavailableWhenOffline()) return;
     const name = (err as DOMException)?.name;
     // NotAllowedError: trình duyệt chặn autoplay — chờ người dùng bấm play.
     // AbortError: một lần load mới đã thay thế lần này.
@@ -112,6 +113,24 @@ async function loadCurrent(autoplay: boolean, startAt = 0): Promise<void> {
     }
     usePlayback.setState({ isPlaying: false, isLoading: false });
   }
+}
+
+let offlineSkips = 0;
+
+/** Mất mạng: bỏ qua bài chưa tải, chuyển sang bài kế tiếp (tối đa một vòng hàng đợi). */
+function skipUnavailableWhenOffline(): boolean {
+  if (typeof navigator === 'undefined' || navigator.onLine) return false;
+  const { queue } = useQueueStore.getState();
+  if (offlineSkips >= queue.items.length - 1) {
+    offlineSkips = 0;
+    return false;
+  }
+  offlineSkips += 1;
+  const step = Q.next({ ...queue, repeat: queue.repeat === 'one' ? 'all' : queue.repeat });
+  if (step.action !== 'play') return false;
+  useQueueStore.getState().setQueue(step.state);
+  void loadCurrent(true);
+  return true;
 }
 
 function messageOf(err: unknown): string {
@@ -260,7 +279,10 @@ export function initPlayer(): void {
     setMediaPlaybackState('paused');
     savePosition();
   });
-  audio.addEventListener('playing', () => usePlayback.setState({ isLoading: false, error: null }));
+  audio.addEventListener('playing', () => {
+    offlineSkips = 0;
+    usePlayback.setState({ isLoading: false, error: null });
+  });
   audio.addEventListener('waiting', () => usePlayback.setState({ isLoading: true }));
   audio.addEventListener('canplay', () => usePlayback.setState({ isLoading: false }));
   audio.addEventListener('timeupdate', () => {

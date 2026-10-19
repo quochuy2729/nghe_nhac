@@ -1,6 +1,7 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { HomeIcon, LibraryIcon, SearchIcon } from '@/components/Icons';
 import { MiniPlayer } from '@/features/player/MiniPlayer';
+import { OfflineBanner } from '@/components/OfflineBanner';
 
 const tabs = [
   { to: '/', label: 'Trang chủ', icon: HomeIcon, end: true },
@@ -11,7 +12,10 @@ const tabs = [
 export function Layout() {
   return (
     <div className="flex h-full flex-col">
-      <main className="flex-1 overflow-y-auto pb-[calc(140px+env(safe-area-inset-bottom))] pt-safe-t">
+      <div className="pt-safe-t">
+        <OfflineBanner />
+      </div>
+      <main className="flex-1 overflow-y-auto pb-[calc(140px+env(safe-area-inset-bottom))]">
         <Outlet />
       </main>
       <MiniPlayer />

@@ -63,7 +63,7 @@ playlist_tracks(playlist_id uuid, track_id text, position int, pk(playlist_id, p
 - [x] **P1 Player core**: audio engine 1 `<audio>`, queue, next/prev (prev: >3s thì về đầu bài), shuffle Fisher–Yates giữ bài hiện tại và khôi phục thứ tự khi tắt, repeat off/all/one, seek bar, mini-player + full player, Media Session. Test unit.
 - [x] **P2 Providers + Search**: Jamendo, Audius, Local; tab nguồn trong Search; hiển thị badge "Tải được".
 - [x] **P3 Auth + Library**: Supabase auth, liked, playlist CRUD, thêm vào hàng đợi; migration SQL trong `supabase/migrations`.
-- [ ] **P4 Offline**: tải về IndexedDB có tiến độ, phát từ blob khi offline, quản lý dung lượng, `storage.persist()`; service worker cache app shell.
+- [x] **P4 Offline**: tải về IndexedDB có tiến độ, phát từ blob khi offline, quản lý dung lượng, `storage.persist()`; service worker cache app shell.
 - [ ] **P5 Lyrics**: client LRCLIB, parser LRC + test, LyricsView synced, chạm-để-seek, cache.
 - [ ] **P6 Hoàn thiện**: skeleton loading, empty states, xử lý lỗi mạng, a11y, kiểm tra trên viewport iPhone 12 Pro (390×844) và Android; README hướng dẫn cài lên màn hình chính.
 

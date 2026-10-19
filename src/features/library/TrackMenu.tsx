@@ -1,9 +1,10 @@
 import { Sheet, SheetItem } from '@/components/Sheet';
 import { Artwork } from '@/components/Artwork';
-import { HeartFilledIcon, HeartIcon, LibraryIcon, PlusIcon, QueueIcon, TrashIcon, UploadIcon } from '@/components/Icons';
+import { HeartFilledIcon, HeartIcon, LibraryIcon, DownloadIcon, CheckCircleIcon, PlusIcon, QueueIcon, TrashIcon, UploadIcon } from '@/components/Icons';
 import { toast } from '@/components/toast';
 import { player } from '@/features/player/store';
 import { usePlaylistPicker, useTrackMenu } from './trackMenu';
+import { canDownload, downloadTrack, removeDownload, useDownloads } from '@/features/downloads/manager';
 import { library, useLibrary } from './store';
 
 export function TrackMenu() {
@@ -14,6 +15,7 @@ export function TrackMenu() {
   const liked = useLibrary((s) => !!track && s.liked.some((t) => t.id === track.id));
   const mode = useLibrary((s) => s.mode);
   const openPicker = usePlaylistPicker((s) => s.open);
+  const downloaded = useDownloads((s) => !!track && !!s.ids[track.id]);
   const run = (fn: () => void) => () => {
     fn();
     close();
@@ -59,6 +61,25 @@ export function TrackMenu() {
               toast('Đã thêm vào hàng đợi');
             })}
           />
+          {canDownload(track) && !downloaded && (
+            <SheetItem
+              icon={<DownloadIcon size={22} />}
+              label="Tải về (nghe offline)"
+              onClick={run(() => {
+                toast('Đang tải về…');
+                downloadTrack(track)
+                  .then(() => toast(`Đã tải “${track.title}”`))
+                  .catch((e: Error) => e.name !== 'AbortError' && toast(`Không tải được: ${e.message}`));
+              })}
+            />
+          )}
+          {downloaded && track.provider !== 'local' && (
+            <SheetItem
+              icon={<CheckCircleIcon size={22} className="text-accent" />}
+              label="Xóa bản tải"
+              onClick={run(() => void removeDownload(track))}
+            />
+          )}
           {track.provider === 'local' && mode === 'cloud' && !track.storagePath && (
             <SheetItem
               icon={<UploadIcon size={22} />}

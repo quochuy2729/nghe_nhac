@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { PageHeader } from '@/components/PageHeader';
-import { HeartFilledIcon, PlusIcon, UserIcon } from '@/components/Icons';
+import { DownloadIcon, HeartFilledIcon, PlusIcon, UserIcon } from '@/components/Icons';
+import { useDownloads } from '@/features/downloads/manager';
 import { library, useLibrary } from '@/features/library/store';
 import { PlaylistCover } from '@/features/library/PlaylistPicker';
 import { hasSupabase } from '@/lib/env';
@@ -12,6 +13,7 @@ export function LibraryPage() {
   const mode = useLibrary((s) => s.mode);
   const status = useLibrary((s) => s.status);
   const error = useLibrary((s) => s.error);
+  const downloaded = useDownloads((s) => s.items.length);
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
 
@@ -88,6 +90,17 @@ export function LibraryPage() {
             <span className="min-w-0">
               <span className="block truncate font-semibold">Bài hát đã thích</span>
               <span className="block text-sm text-muted">Playlist · {liked.length} bài</span>
+            </span>
+          </Link>
+        </li>
+        <li>
+          <Link to="/library/downloads" className="flex min-h-[72px] items-center gap-3 px-4 py-2 active:bg-white/5">
+            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded bg-gradient-to-br from-emerald-800 to-emerald-400">
+              <DownloadIcon size={26} />
+            </span>
+            <span className="min-w-0">
+              <span className="block truncate font-semibold">Đã tải về</span>
+              <span className="block text-sm text-muted">Nghe khi không có mạng · {downloaded} bài</span>
             </span>
           </Link>
         </li>

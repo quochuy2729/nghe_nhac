@@ -6,6 +6,8 @@ import { PlaylistPicker } from '@/features/library/PlaylistPicker';
 import { CloseOverlaysOnNavigate } from './CloseOverlaysOnNavigate';
 import { PlaylistPage } from '@/pages/PlaylistPage';
 import { LikedPage } from '@/pages/LikedPage';
+import { DownloadsPage } from '@/pages/DownloadsPage';
+import { initDownloads } from '@/features/downloads/manager';
 import { initPlayer } from '@/features/player/store';
 import { TrackMenu } from '@/features/library/TrackMenu';
 import { Toast } from '@/components/Toast';
@@ -23,6 +25,7 @@ export function App() {
     initPlayer();
     initAuth();
     initLibrary();
+    initDownloads();
   }, []);
   return (
     <HashRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
@@ -32,6 +35,7 @@ export function App() {
           <Route path="search" element={<SearchPage />} />
           <Route path="library" element={<LibraryPage />} />
           <Route path="library/liked" element={<LikedPage />} />
+          <Route path="library/downloads" element={<DownloadsPage />} />
           <Route path="library/playlist/:id" element={<PlaylistPage />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>
