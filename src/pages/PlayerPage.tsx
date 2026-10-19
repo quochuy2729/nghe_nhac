@@ -11,6 +11,7 @@ import { useCurrentTrack } from '@/features/player/hooks';
 import { useQueueStore, usePlayback, player } from '@/features/player/store';
 import { LikeButton } from '@/features/library/LikeButton';
 import { DownloadButton } from '@/features/downloads/DownloadButton';
+import { LyricsCard } from '@/features/lyrics/LyricsCard';
 
 export function PlayerPage() {
   const track = useCurrentTrack();
@@ -47,7 +48,7 @@ export function PlayerPage() {
         </div>
       ) : (
         <>
-          <div className="flex flex-1 items-center justify-center py-6">
+          <div className="flex min-h-[55vh] flex-1 items-center justify-center py-6">
             <Artwork
               src={track.artworkUrl}
               alt={`Ảnh bìa ${track.title}`}
@@ -86,6 +87,7 @@ export function PlayerPage() {
               <QueueIcon size={20} /> Hàng đợi
             </button>
           </div>
+          <LyricsCard track={track} color={color} />
         </>
       )}
       <QueueSheet open={queueOpen} onClose={() => setQueueOpen(false)} />

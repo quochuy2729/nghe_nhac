@@ -43,6 +43,7 @@ interface Track {
 - Đồng bộ: `requestAnimationFrame` đọc `audio.currentTime`, binary search dòng hiện tại; dòng active tô sáng + phóng nhẹ, tự `scrollIntoView({block:'center', behavior:'smooth'})`; người dùng cuộn tay thì tạm dừng auto-scroll 3s. Chạm vào một dòng → seek tới thời điểm đó.
 - Màn Lyrics full-screen, nền lấy màu chủ đạo từ artwork (canvas sample).
 - Cache lyrics trong IndexedDB theo trackId (chỉ trên máy, không lên server).
+- **Đã triển khai**: tự cuộn bằng `container.scrollTo` căn giữa (tương đương `scrollIntoView({block:'center'})` nhưng không kéo cả trang khi lời nằm trong thẻ xem trước ở màn Đang phát). "Không tìm thấy" được cache 3 ngày rồi thử lại. Bài demo dùng LRC giả tự viết, không gọi LRCLIB.
 
 ## 5. Dữ liệu & tài khoản (Supabase)
 ```sql
@@ -64,7 +65,7 @@ playlist_tracks(playlist_id uuid, track_id text, position int, pk(playlist_id, p
 - [x] **P2 Providers + Search**: Jamendo, Audius, Local; tab nguồn trong Search; hiển thị badge "Tải được".
 - [x] **P3 Auth + Library**: Supabase auth, liked, playlist CRUD, thêm vào hàng đợi; migration SQL trong `supabase/migrations`.
 - [x] **P4 Offline**: tải về IndexedDB có tiến độ, phát từ blob khi offline, quản lý dung lượng, `storage.persist()`; service worker cache app shell.
-- [ ] **P5 Lyrics**: client LRCLIB, parser LRC + test, LyricsView synced, chạm-để-seek, cache.
+- [x] **P5 Lyrics**: client LRCLIB, parser LRC + test, LyricsView synced, chạm-để-seek, cache.
 - [ ] **P6 Hoàn thiện**: skeleton loading, empty states, xử lý lỗi mạng, a11y, kiểm tra trên viewport iPhone 12 Pro (390×844) và Android; README hướng dẫn cài lên màn hình chính.
 
 ## 7. Tiêu chí nghiệm thu
