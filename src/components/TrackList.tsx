@@ -1,6 +1,6 @@
 import type { Track } from '@/providers/types';
 import { player } from '@/features/player/store';
-import { useTrackMenu } from '@/features/library/trackMenu';
+import { useTrackMenu } from '@/features/library/trackMenuStore';
 import { DownloadableBadge } from './Badges';
 import { MoreIcon } from './Icons';
 import { TrackRow } from './TrackRow';

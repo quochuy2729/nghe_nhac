@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { PlusIcon } from '@/components/Icons';
-import { toast } from '@/components/toast';
+import { toast } from '@/components/toastStore';
 import { importLocalFiles } from '@/providers/local';
 
 const ACCEPT = 'audio/*,.mp3,.m4a,.aac,.flac,.ogg,.opus,.wav,.lrc';

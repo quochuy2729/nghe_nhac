@@ -1,5 +1,5 @@
 import { CheckCircleIcon, DownloadIcon } from '@/components/Icons';
-import { toast } from '@/components/toast';
+import { toast } from '@/components/toastStore';
 import type { Track } from '@/providers/types';
 import { cancelDownload, canDownload, downloadTrack, removeDownload, useDownloads } from './manager';
 

@@ -3,7 +3,7 @@ import type { Track } from '@/providers/types';
 import { setLocalCloudLister, setLocalRemoteResolver } from '@/providers/local';
 import { supabase } from '@/lib/supabase';
 import { uuid } from '@/lib/id';
-import { toast } from '@/components/toast';
+import { toast } from '@/components/toastStore';
 import { useAuth } from '@/features/auth/store';
 import { clearGuest, guestBackend, readGuest } from './guest';
 import { createCloudBackend } from './cloud';
