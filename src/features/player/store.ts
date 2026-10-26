@@ -6,7 +6,9 @@ import * as Q from './queue';
 import { resolvePlayableUrl } from './resolve';
 import { platform } from '@/platform';
 import { createListenTracker, useHistory } from '@/features/recommend/history';
-import { autoplayTracks, similarForTrack } from '@/features/recommend/radio';
+import { autoplayTracks, currentSignals, similarForTrack } from '@/features/recommend/radio';
+import { recommend } from '@/features/recommend/engine';
+import { smartShuffle } from '@/features/recommend/smartShuffle';
 import { useRecommendSettings } from '@/features/recommend/settings';
 import { library, useLibrary } from '@/features/library/store';
 import { itemsAfter, needsTopUp, upcomingItems, WINDOW_AHEAD } from './window';
@@ -199,6 +201,26 @@ async function resyncUpcoming(): Promise<void> {
   await engine.setUpcoming?.(up);
 }
 
+/** Sắp lại các bài sau bài đang phát theo "trộn thông minh" (đặc trưng âm thanh + gu nghe), có thể chèn ✨. */
+function smartOrder(queue: Q.QueueState): Q.QueueState {
+  const cur = Q.currentItem(queue);
+  const upcoming = queue.items.filter((it) => it.uid !== cur?.uid && !it.suggested);
+  const sig = currentSignals();
+  const affinity = new Map(recommend(sig, { limit: sig.library.length }).map((x) => [x.track.id, x.score]));
+  const inject = useRecommendSettings.getState().injectSuggestions
+    ? recommend(sig, { limit: 24, exclude: new Set(queue.items.map((it) => it.track.id)) }).map((x) => x.track)
+    : undefined;
+  const { tracks, suggestedIds } = smartShuffle(
+    upcoming.map((it) => it.track),
+    { features: sig.features, score: (t) => Math.max(0, affinity.get(t.id) ?? 0), inject },
+  );
+  const byTrack = new Map(upcoming.map((it) => [it.track.id, it]));
+  const items = tracks.map((t) =>
+    suggestedIds.has(t.id) ? { uid: Q.makeUid(), track: t, suggested: true } : (byTrack.get(t.id) as Q.QueueItem),
+  );
+  return Q.applySmartOrder(queue, items);
+}
+
 let toppingUp = false;
 
 /** Còn ≤ 5 bài trong cửa sổ thì đẩy thêm (hết hàng đợi thì nối bài tương tự nếu bật "tự phát"). */
@@ -349,6 +371,19 @@ export const player = {
   toggleShuffle() {
     const { queue, setQueue } = useQueueStore.getState();
     setQueue(Q.setShuffle(queue, !queue.shuffle));
+    void resyncUpcoming();
+  },
+
+  /** Xoay vòng: Tắt → Trộn → Trộn thông minh → Tắt. */
+  cycleShuffle() {
+    const { queue, setQueue } = useQueueStore.getState();
+    if (!queue.shuffle) {
+      setQueue(Q.setShuffle(queue, true));
+    } else if (!queue.smart) {
+      setQueue(smartOrder(queue));
+    } else {
+      setQueue(Q.setShuffle(queue, false));
+    }
     void resyncUpcoming();
   },
 

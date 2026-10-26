@@ -1,7 +1,18 @@
 import type { ComponentType } from 'react';
 import type { Signals } from '@/features/recommend/engine';
 import type { Track } from '@/providers/types';
-import { ForYouShelf, MixesShelf, NewestShelf, RecentShelf } from './builtin';
+import {
+  DiscoverShelf,
+  ForYouShelf,
+  IntentShelf,
+  LongTimeShelf,
+  MixesShelf,
+  MoodMixesShelf,
+  NewestShelf,
+  OnRepeatShelf,
+  RecentShelf,
+  TimeMixShelf,
+} from './builtin';
 
 /** Dữ liệu dùng chung cho mọi kệ; được tạo lại khi thư viện, lịch sử hoặc danh sách thích đổi. */
 export interface HomeContext {
@@ -17,8 +28,14 @@ export interface HomeShelf {
 
 /** Thứ tự hiển thị trên Trang chủ. Thêm kệ mới = thêm một dòng. */
 export const homeShelves: HomeShelf[] = [
+  { id: 'intent', Component: IntentShelf },
   { id: 'recent', Component: RecentShelf },
   { id: 'for-you', Component: ForYouShelf },
+  { id: 'time', Component: TimeMixShelf },
+  { id: 'moods', Component: MoodMixesShelf },
+  { id: 'on-repeat', Component: OnRepeatShelf },
+  { id: 'long-time', Component: LongTimeShelf },
+  { id: 'discover', Component: DiscoverShelf },
   { id: 'mixes', Component: MixesShelf },
   { id: 'newest', Component: NewestShelf },
 ];

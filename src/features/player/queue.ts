@@ -11,6 +11,8 @@ export type Rng = () => number;
 export interface QueueItem {
   uid: string;
   track: Track;
+  /** Bài do "trộn thông minh" chèn thêm (gắn nhãn ✨), không thuộc danh sách gốc. */
+  suggested?: boolean;
 }
 
 export interface QueueState {
@@ -18,6 +20,8 @@ export interface QueueState {
   items: QueueItem[];
   index: number;
   shuffle: boolean;
+  /** Với shuffle = true: true là "trộn thông minh" (xem recommend/smartShuffle). */
+  smart?: boolean;
   repeat: RepeatMode;
 }
 
@@ -93,8 +97,19 @@ export function setShuffle(state: QueueState, on: boolean, rng: Rng = Math.rando
   if (on) {
     return { ...state, shuffle: true, items: shuffleKeepCurrent(state.items, state.index, rng), index: cur ? 0 : -1 };
   }
-  const index = cur ? state.original.findIndex((it) => it.uid === cur.uid) : -1;
-  return { ...state, shuffle: false, items: state.original, index };
+  // Về thứ tự gốc: bỏ bài ✨ chèn thêm; đang phát bài ✨ thì quay về đầu danh sách.
+  const items = state.original;
+  const at = cur ? items.findIndex((it) => it.uid === cur.uid) : -1;
+  return { ...state, shuffle: false, smart: false, items, index: cur && at < 0 ? 0 : at };
+}
+
+/**
+ * Đặt thứ tự mới cho các bài SAU bài đang phát (trộn thông minh). `original` giữ nguyên để tắt trộn là về
+ * đúng thứ tự cũ; bài ✨ chỉ nằm trong `items`.
+ */
+export function applySmartOrder(state: QueueState, upcoming: readonly QueueItem[]): QueueState {
+  const cur = currentItem(state);
+  return { ...state, shuffle: true, smart: true, items: [...(cur ? [cur] : []), ...upcoming], index: cur ? 0 : -1 };
 }
 
 export function nextRepeatMode(mode: RepeatMode): RepeatMode {

@@ -78,6 +78,9 @@ export function PlayerPage() {
           )}
 
           <div className="mt-4 flex items-center justify-between">
+            <button type="button" onClick={() => player.playRadio(track)} className="icon-btn gap-2 px-2 text-sm text-white/80">
+              Radio
+            </button>
             <Link to="/lyrics" aria-label="Lời bài hát" className="icon-btn -ml-2 gap-2 px-2 text-sm text-white/80">
               <MicIcon size={20} /> Lời bài hát
             </Link>

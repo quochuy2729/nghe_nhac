@@ -16,7 +16,7 @@ export function createWebPlatform(): Platform {
       gapless: false,
       speed: false,
       sleepTimer: false,
-      analyze: false,
+      analyze: true,
     },
     library: new WebImportSource(),
     engine: new WebAudioEngine(),

@@ -6,6 +6,7 @@ import { ImportMusic } from '@/features/folder/ImportMusic';
 import { homeShelves, type HomeContext } from '@/features/home/shelves';
 import { useLibrary } from '@/features/library/store';
 import { player } from '@/features/player/store';
+import { useFeatures } from '@/features/analyze/featuresStore';
 import { useHistory } from '@/features/recommend/history';
 import { loadFolder, useFolder } from '@/providers/folder';
 
@@ -20,12 +21,13 @@ export function HomePage() {
   const { tracks, status, error } = useFolder();
   const events = useHistory((s) => s.events);
   const liked = useLibrary((s) => s.liked);
+  const features = useFeatures((s) => s.map);
 
   const ctx = useMemo<HomeContext>(
-    () => ({ tracks, signals: { library: tracks, events, liked: new Set(liked.map((t) => t.id)), now: Date.now() } }),
+    () => ({ tracks, signals: { library: tracks, features, events, liked: new Set(liked.map((t) => t.id)), now: Date.now() } }),
     // Chỉ tính lại khi thư viện/lịch sử/like đổi (mỗi lượt nghe thêm đúng một event).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [tracks, events.length, liked],
+    [tracks, events.length, liked, features],
   );
 
   return (

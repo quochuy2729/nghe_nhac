@@ -8,6 +8,8 @@ export default function RecommendSection() {
   const plays = useHistory((s) => s.events.length);
   const autoplay = useRecommendSettings((s) => s.autoplay);
   const setAutoplay = useRecommendSettings((s) => s.setAutoplay);
+  const inject = useRecommendSettings((s) => s.injectSuggestions);
+  const setInject = useRecommendSettings((s) => s.setInjectSuggestions);
 
   return (
     <section className="mt-6 px-4">
@@ -19,6 +21,13 @@ export default function RecommendSection() {
             <span className="block text-xs text-muted">Hết hàng đợi thì nối thêm bài giống bài vừa nghe.</span>
           </span>
           <input type="checkbox" className="h-6 w-6 shrink-0 accent-[#2dd4bf]" checked={autoplay} onChange={(e) => setAutoplay(e.target.checked)} aria-label="Tự phát nhạc tương tự" />
+        </li>
+        <li className="flex items-center justify-between gap-3 p-4">
+          <span>
+            Chèn gợi ý ✨ khi trộn thông minh
+            <span className="block text-xs text-muted">Cứ 4 bài thêm 1 bài ngoài danh sách phát (không lưu vào playlist).</span>
+          </span>
+          <input type="checkbox" className="h-6 w-6 shrink-0 accent-[#2dd4bf]" checked={inject} onChange={(e) => setInject(e.target.checked)} aria-label="Chèn gợi ý khi trộn thông minh" />
         </li>
         <li className="flex items-center justify-between gap-3 p-4">
           <span>

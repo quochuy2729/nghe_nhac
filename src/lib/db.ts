@@ -212,6 +212,10 @@ export async function putFeatures(rec: FeaturesRecord): Promise<void> {
   await (await getDB()).put('features', rec);
 }
 
+export async function getAllFeatures(): Promise<FeaturesRecord[]> {
+  return (await getDB()).getAll('features');
+}
+
 export async function getFeatures(trackId: string): Promise<FeaturesRecord | undefined> {
   return (await getDB()).get('features', trackId);
 }

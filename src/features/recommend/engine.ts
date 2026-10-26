@@ -6,8 +6,11 @@
  *  4. đồng nghe: những bài hay được nghe liền nhau
  * Toàn bộ là hàm thuần (nhận rng/now) để test được.
  */
+import type { AudioFeatures } from '@/lib/db';
 import { normalizeText } from '@/lib/text';
 import type { Track } from '@/providers/types';
+import { contentSim } from './contentSim';
+import { computeIntent, intentScore, type Intent } from './intent';
 import type { PlayEvent, PlayKind } from './history';
 
 const DAY = 86_400_000;
@@ -158,6 +161,8 @@ export function buildCoPlay(events: readonly PlayEvent[]): CoPlay {
 
 export interface Signals {
   library: readonly Track[];
+  /** Đặc trưng âm thanh đã phân tích (G5). Thiếu thì gợi ý chỉ dựa vào tag + hành vi nghe. */
+  features?: ReadonlyMap<string, AudioFeatures>;
   events: readonly PlayEvent[];
   liked: ReadonlySet<string>;
   now: number;
@@ -169,6 +174,10 @@ const TASTE_SIZE = 60;
 const SESSION_DECAY = 0.8;
 
 interface Prepared {
+  /** Độ giống tổng hợp (tag + âm thanh nếu có). */
+  sim: (a: Track, b: Track) => number;
+  intent: Intent | null;
+  features: ReadonlyMap<string, AudioFeatures>;
   byId: Map<string, Track>;
   affinity: Map<string, number>;
   /** Bài vừa nghe (mới nhất trước), không tính bài bị bỏ qua. */
@@ -196,7 +205,11 @@ function prepare(s: Signals): Prepared {
     .slice(0, TASTE_SIZE);
   const recentlyPlayed = new Map<string, number>();
   for (const e of sorted) if (!recentlyPlayed.has(e.trackId)) recentlyPlayed.set(e.trackId, e.t);
+  const features = s.features ?? new Map<string, AudioFeatures>();
   return {
+    sim: (a, b) => contentSim(a, b, contentSimilarity(a, b), features.get(a.id), features.get(b.id)),
+    intent: features.size ? computeIntent(s.events, features, s.now) : null,
+    features,
     byId,
     affinity,
     session,
@@ -212,7 +225,7 @@ function sessionScore(p: Prepared, c: Track): number {
   let w = 0;
   p.session.forEach((t, i) => {
     const wi = SESSION_DECAY ** i;
-    sum += wi * contentSimilarity(c, t);
+    sum += wi * p.sim(c, t);
     w += wi;
   });
   return w ? sum / w : 0;
@@ -221,7 +234,7 @@ function sessionScore(p: Prepared, c: Track): number {
 function tasteScore(p: Prepared, c: Track): number {
   if (!p.tasteNorm) return 0;
   let sum = 0;
-  for (const { track, w } of p.taste) sum += w * contentSimilarity(c, track);
+  for (const { track, w } of p.taste) sum += w * p.sim(c, track);
   return sum / p.tasteNorm;
 }
 
@@ -255,6 +268,8 @@ export function recommend(s: Signals, opts: { limit?: number; exclude?: Readonly
     if (p.session.length) parts.push([0.5, sessionScore(p, track)]);
     if (p.taste.length) parts.push([0.3, tasteScore(p, track)]);
     if (p.session.length && p.co.size) parts.push([0.2, coScore(p, track, p.session)]);
+    const feat = p.features.get(track.id);
+    if (p.intent && feat) parts.push([0.25, intentScore(p.intent, feat)]);
     const wsum = parts.reduce((n, [w]) => n + w, 0);
     let score = parts.reduce((n, [w, v]) => n + w * v, 0) / wsum;
     const last = p.recentlyPlayed.get(track.id);
@@ -274,7 +289,7 @@ export function similarTo(seed: Track, s: Signals, opts: { limit?: number; exclu
   const scored = s.library
     .filter((t) => t.id !== seed.id && !opts.exclude?.has(t.id))
     .map((track) => {
-      let score = 0.7 * contentSimilarity(seed, track) + 0.2 * coScore(p, track, [seed]);
+      let score = 0.7 * p.sim(seed, track) + 0.2 * coScore(p, track, [seed]);
       if (p.taste.length) score += 0.1 * Math.max(0, tasteScore(p, track));
       const aff = p.affinity.get(track.id) ?? 0;
       if (aff < 0) score += 0.3 * Math.max(aff, -1);

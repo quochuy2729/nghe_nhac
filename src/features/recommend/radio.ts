@@ -2,12 +2,14 @@
 import { useFolder } from '@/providers/folder';
 import type { Track } from '@/providers/types';
 import { useLibrary } from '@/features/library/store';
+import { useFeatures } from '@/features/analyze/featuresStore';
 import { recommend, similarTo, type Signals } from './engine';
 import { useHistory } from './history';
 
 export function currentSignals(now = Date.now()): Signals {
   return {
     library: useFolder.getState().tracks,
+    features: useFeatures.getState().map,
     events: useHistory.getState().events,
     liked: new Set(useLibrary.getState().liked.map((t) => t.id)),
     now,

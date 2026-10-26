@@ -8,7 +8,7 @@ Player đầy đủ + Media Session, lyrics (LRC/LRCLIB), nạp nhạc vào IDB 
 - [x] G2 Vỏ Android + đọc thẳng thư mục
 - [x] G3 Phát nhạc native (Media3)
 - [x] G4 Đồng bộ v2
-- [ ] G5 Phân tích âm thanh + gợi ý thông minh
+- [x] G5 Phân tích âm thanh + gợi ý thông minh
 - [ ] G6 Trải nghiệm nghe
 - [ ] G7 Quản lý thư viện
 - [ ] G8 Thống kê / Wrapped
@@ -34,7 +34,15 @@ Player đầy đủ + Media Session, lyrics (LRC/LRCLIB), nạp nhạc vào IDB 
 - `features/sync/`: `syncMerge` (LWW giao hoán, pull lùi 5 phút, backoff), `syncService` (push lô 500 → pull con trỏ), `start` (mở app/foreground/online/10 phút/đăng nhập), `localData` (settings, smart playlists trong `meta`).
 - Lịch sử nghe + like/playlist (hàng đợi offline `library`) đi qua outbox; Cài đặt có mục Đồng bộ và "Xóa lịch sử" xóa cả server.
 
+## G5 (đã xong)
+- `features/analyze/`: `extract` (Meyda + BPM tự viết, thuần, trong Worker lazy), `queue` (45 giây quanh 35%, điều kiện pin/phát nhạc), `featuresStore`, `service`; `WebDecoder` thật (Android tạm đọc file qua WebView).
+- `recommend/`: `audioSim`, `contentSim`, `intent`, `mood`, `smartShuffle`, `mixes`; engine nhận `Signals.features` (giữ nguyên chữ ký hàm public).
+- UI: nút trộn 3 trạng thái (✨ trong hàng đợi), kệ Trang chủ mới (Đang muốn nghe + chip, Mix theo giờ/mood, On Repeat, Lâu rồi chưa nghe, Khám phá), nút Radio, Cài đặt › Phân tích âm thanh.
+
 ## Câu hỏi mở
+- G5: tâm trạng/`energy`/`brightness` là ước lượng bằng luật + hằng số cố định (không học máy). BPM chỉ tin cậy với nhạc có nhịp rõ; `bpmConf` thấp thì bỏ qua.
+- G5: Android chưa có `NativeDecoder` (G6): phân tích đọc cả file qua WebView, file > 60 MB bị bỏ qua. Trộn thông minh không giữ được khi hết vòng lặp ở `repeat: all` (vòng mới xáo thường).
+- G5: `fetchRemoteFeatures` thay bằng `syncNow()` + nạp lại IndexedDB (G4 đã có).
 - G4: like/playlist vẫn ghi thẳng Supabase khi có mạng, chỉ rơi vào outbox khi mất mạng (giữ nguyên hành vi v1 cho người online). `user_settings`/`smart_playlists` đã có hàm ghi + sync nhưng UI dùng chúng nằm ở G6/G7.
 - G4: xóa lịch sử trên server không xóa được outbox/bản local của MÁY KHÁC; máy đó sẽ đẩy lại lượt nghe của nó khi sync.
 - G3: cửa sổ không vòng lại đầu và không có bài trước bài hiện tại → nút "bài trước" trên notification chỉ tua về đầu bài; nút trong app vẫn đi theo hàng đợi JS. Khi WebView chết thì không nạp thêm được (tối đa 20 bài).

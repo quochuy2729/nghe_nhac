@@ -32,6 +32,7 @@ export function PlayPauseButton({ size = 'lg' }: { size?: 'sm' | 'lg' }) {
 
 export function TransportControls() {
   const shuffle = useQueueStore((s) => s.queue.shuffle);
+  const smart = useQueueStore((s) => !!s.queue.smart);
   const repeat = useQueueStore((s) => s.queue.repeat);
   const hasTrack = useQueueStore((s) => s.queue.items.length > 0);
   const repeatLabel = repeat === 'off' ? 'Lặp lại: tắt' : repeat === 'all' ? 'Lặp lại: tất cả' : 'Lặp lại: một bài';
@@ -40,12 +41,17 @@ export function TransportControls() {
     <div className="flex items-center justify-between">
       <button
         type="button"
-        onClick={() => player.toggleShuffle()}
-        aria-label={shuffle ? 'Tắt trộn bài' : 'Bật trộn bài'}
+        onClick={() => player.cycleShuffle()}
+        aria-label={!shuffle ? 'Trộn bài: tắt (bấm để bật)' : smart ? 'Trộn thông minh (bấm để tắt)' : 'Trộn bài: bật (bấm để trộn thông minh)'}
         aria-pressed={shuffle}
         className={cx('icon-btn relative', shuffle ? 'text-accent' : 'text-white/80')}
       >
         <ShuffleIcon size={22} />
+        {smart && (
+          <span aria-hidden className="absolute right-1 top-1 text-[10px] leading-none">
+            ✨
+          </span>
+        )}
         {shuffle && <span className="absolute bottom-1 h-1 w-1 rounded-full bg-accent" />}
       </button>
       <button type="button" onClick={() => player.previous()} disabled={!hasTrack} aria-label="Bài trước" className="icon-btn h-14 w-14">

@@ -37,6 +37,7 @@ export function QueueSheet({ open, onClose }: { open: boolean; onClose: () => vo
                 <li key={it.uid}>
                   <QueueRow
                     title={it.track.title}
+                    suggested={it.suggested}
                     artist={it.track.artist}
                     art={it.track.artworkUrl}
                     onPlay={() => player.jumpTo(it.uid)}
@@ -57,6 +58,7 @@ function QueueRow(props: {
   title: string;
   artist: string;
   art?: string;
+  suggested?: boolean;
   active?: boolean;
   onPlay?: () => void;
   onRemove?: () => void;
@@ -67,7 +69,10 @@ function QueueRow(props: {
       <button type="button" onClick={props.onPlay} disabled={!props.onPlay} className="flex min-w-0 flex-1 items-center gap-3 text-left">
         <Artwork src={props.art} className="h-11 w-11" />
         <span className="min-w-0">
-          <span className={cx('block truncate text-sm font-medium', props.active && 'text-accent')}>{props.title}</span>
+          <span className={cx('block truncate text-sm font-medium', props.active && 'text-accent')}>
+            {props.suggested && <span title="Gợi ý thêm">✨ </span>}
+            {props.title}
+          </span>
           <span className="block truncate text-xs text-muted">{props.artist}</span>
         </span>
       </button>

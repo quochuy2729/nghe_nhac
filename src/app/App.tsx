@@ -8,6 +8,7 @@ import { initLibrary } from '@/features/library/store';
 import { TrackMenu } from '@/features/library/TrackMenu';
 import { initPlayer } from '@/features/player/store';
 import { loadHistory } from '@/features/recommend/history';
+import { initAnalysis } from '@/features/analyze/service';
 import { startSync } from '@/features/sync/start';
 import { platform } from '@/platform';
 import { loadFolder } from '@/providers/folder';
@@ -32,9 +33,11 @@ export function App() {
     void loadHistory();
     const stopRescan = platform.library.startAutoRescan?.();
     const stopSync = startSync();
+    const stopAnalysis = initAnalysis();
     return () => {
       stopRescan?.();
       stopSync();
+      stopAnalysis();
     };
   }, []);
 
