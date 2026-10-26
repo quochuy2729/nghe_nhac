@@ -6,7 +6,7 @@ Player đầy đủ + Media Session, lyrics (LRC/LRCLIB), nạp nhạc vào IDB 
 ## Tiến độ v2
 - [x] G1 Tách lớp platform
 - [x] G2 Vỏ Android + đọc thẳng thư mục
-- [ ] G3 Phát nhạc native (Media3)
+- [x] G3 Phát nhạc native (Media3)
 - [ ] G4 Đồng bộ v2
 - [ ] G5 Phân tích âm thanh + gợi ý thông minh
 - [ ] G6 Trải nghiệm nghe
@@ -25,7 +25,13 @@ Player đầy đủ + Media Session, lyrics (LRC/LRCLIB), nạp nhạc vào IDB 
 - Plugin Kotlin `MusicLibrary` (SAF: pickFolder/listFolders/removeFolder/scan lô 200/readTags/artwork/readText) + `platform/android/SafLibrarySource` (quét tăng dần theo id+mtime, `safScan.ts` thuần), tự quét khi mở app/foreground (5 giây).
 - Phát tạm bằng `<audio>` + `convertFileSrc(content://…)` (G3 thay bằng Media3). Workflow `android.yml`, README §8 (keystore, 4 secrets, cài APK).
 
+## G3 (đã xong, chờ workflow xanh)
+- `PlaybackService` (Media3 ExoPlayer + MediaSession, focus, becoming-noisy, nút ♥) + plugin `NativePlayer`; `NativeAudioEngine` (contract thêm `managesQueue`, `appendWindow`, `setUpcoming`, `setLiked`, event `history`).
+- Store phản chiếu "cửa sổ" native (bài hiện tại + 20 bài kế), nạp thêm khi còn ≤ 5, đồng bộ lại khi sửa hàng đợi; lượt nghe do native đo và ghi vào SharedPreferences, JS `drainEvents()` khi mở/quay lại/đổi bài.
+
 ## Câu hỏi mở
+- G3: cửa sổ không vòng lại đầu và không có bài trước bài hiện tại → nút "bài trước" trên notification chỉ tua về đầu bài; nút trong app vẫn đi theo hàng đợi JS. Khi WebView chết thì không nạp thêm được (tối đa 20 bài).
+- G3: `reason: 'error'` do service gắn khi tự nhảy qua bài lỗi; JS chưa hiện toast riêng cho từng bài bị bỏ qua.
 - G2: plugin `scan` không lọc theo `sinceMtime` (spec §7) vì JS cần danh sách đầy đủ để phát hiện bài bị xóa; so id+mtime làm ở JS. Đổi tên file → id đổi (id theo tên) → coi là bài mới, like/playlist của id cũ không tự chuyển.
 - G2: ảnh bìa nằm trong cache app (OS có thể dọn) → `artwork()` tạo lại, nhưng `track.artworkUrl` đã lưu có thể hỏng cho tới lần đọc lại tag.
 - G2: bài chưa đọc được thời lượng từ tag lưu `durationSec: 0` (web có probe bằng <audio>; Android chưa).
@@ -34,6 +40,10 @@ Player đầy đủ + Media Session, lyrics (LRC/LRCLIB), nạp nhạc vào IDB 
 - `platform.caps` ở web đang để `false` hết cho tới khi tính năng có thật (speed/sleepTimer ở G6, analyze ở G5).
 
 ## QA thủ công cần chủ repo làm
+- [ ] G3: khóa màn hình nghe 30 phút liên tục qua nhiều bài (chuyển bài khi tắt màn hình, notification có ảnh bìa).
+- [ ] G3: nút tai nghe Bluetooth (play/pause/next/prev); rút tai nghe thì dừng; có cuộc gọi đến thì dừng rồi phát tiếp.
+- [ ] G3: lịch sử nghe lúc khóa màn hình hiện đủ khi mở app; nút ♥ trên notification đổi trạng thái thích.
+- [ ] G3: xóa một file đang trong hàng đợi rồi nghe tới nó → tự nhảy sang bài kế.
 - [ ] G2: tạo keystore + 4 secrets (README §8), push → tải APK từ Artifacts, cài lên Poco.
 - [ ] G2: chọn thư mục `Music/` ~1000 bài → quét lần đầu < 2 phút; quét lại khi không đổi < 5 giây.
 - [ ] G2: thêm/xóa/đổi tên một file rồi mở lại app → danh sách cập nhật; like/lịch sử của bài bị xóa không mất.
