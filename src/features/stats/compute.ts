@@ -179,11 +179,28 @@ export function computeStats(input: StatsInput): Stats {
   const device = input.device ?? 'all';
   const top = input.top ?? 10;
   const byId = new Map(tracks.map((t) => [t.id, t]));
-  const artistsOf = new Map<string, string[]>();
-  const artistList = (t: Track): string[] => {
-    let a = artistsOf.get(t.id);
-    if (!a) artistsOf.set(t.id, (a = splitArtists(t.albumArtist || t.artist)));
-    return a;
+  // Chuẩn hóa chuỗi (bỏ dấu) rất tốn, nên chỉ làm một lần cho mỗi bài thay vì mỗi lượt nghe.
+  interface Info {
+    artists: Array<{ key: string; name: string }>;
+    genres: Array<{ key: string; name: string }>;
+    album: string;
+    mood: Mood | null;
+  }
+  const infoOf = new Map<string, Info>();
+  const info = (t: Track): Info => {
+    let i = infoOf.get(t.id);
+    if (!i) {
+      const f = features?.get(t.id);
+      const m = f ? moodOf(f) : null;
+      i = {
+        artists: splitArtists(t.albumArtist || t.artist).map((name) => ({ key: normalizeText(name), name })),
+        genres: (t.genre ?? []).map((name) => ({ key: normalizeText(name), name })),
+        album: t.album ? normalizeText(t.album) : '',
+        mood: m && m !== 'khac' ? m : null,
+      };
+      infoOf.set(t.id, i);
+    }
+    return i;
   };
 
   const trackMap = new Map<string, Acc>();
@@ -205,11 +222,11 @@ export function computeStats(input: StatsInput): Stats {
     if (device !== 'all' && e.device !== device) continue;
     const t = byId.get(e.trackId);
     if (e.kind !== 'skip') {
-      const names = t ? artistList(t) : [];
-      for (const n of names) {
-        const k = normalizeText(n);
-        const prev = firstSeen.get(k);
-        if (prev === undefined || e.t < prev) firstSeen.set(k, e.t);
+      if (t) {
+        for (const { key } of info(t).artists) {
+          const prev = firstSeen.get(key);
+          if (prev === undefined || e.t < prev) firstSeen.set(key, e.t);
+        }
       }
     }
     const lp = localParts(e.t);
@@ -228,14 +245,11 @@ export function computeStats(input: StatsInput): Stats {
 
     bump(trackMap, e.trackId, { name: t?.title ?? 'Bài đã xóa', subtitle: t?.artist, trackId: e.trackId }, minutes, isPlay ? 1 : 0);
     if (!t) continue;
-    for (const n of artistList(t)) bump(artistMap, normalizeText(n), { name: n }, minutes, isPlay ? 1 : 0);
-    for (const g of t.genre ?? []) bump(genreMap, normalizeText(g), { name: g }, minutes, isPlay ? 1 : 0);
-    if (t.album) bump(albumMap, normalizeText(t.album), { name: t.album, subtitle: t.albumArtist || t.artist }, minutes, isPlay ? 1 : 0);
-    const f = features?.get(t.id);
-    if (f) {
-      const m = moodOf(f);
-      if (m !== 'khac') moodMin.set(m, (moodMin.get(m) ?? 0) + minutes);
-    }
+    const ti = info(t);
+    for (const a of ti.artists) bump(artistMap, a.key, { name: a.name }, minutes, isPlay ? 1 : 0);
+    for (const g of ti.genres) bump(genreMap, g.key, { name: g.name }, minutes, isPlay ? 1 : 0);
+    if (ti.album) bump(albumMap, ti.album, { name: t.album!, subtitle: t.albumArtist || t.artist }, minutes, isPlay ? 1 : 0);
+    if (ti.mood) moodMin.set(ti.mood, (moodMin.get(ti.mood) ?? 0) + minutes);
   }
 
   let busiest: Stats['busiest'] = null;
