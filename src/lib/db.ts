@@ -220,6 +220,10 @@ export async function putOverride(rec: OverrideRecord): Promise<void> {
   await (await getDB()).put('overrides', rec);
 }
 
+export async function getOverride(trackId: string): Promise<OverrideRecord | undefined> {
+  return (await getDB()).get('overrides', trackId);
+}
+
 export async function getAllOverrides(): Promise<OverrideRecord[]> {
   return (await getDB()).getAll('overrides');
 }

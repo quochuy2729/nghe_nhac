@@ -1,10 +1,11 @@
+import { toast } from '@/components/toastStore';
 import { useHistory } from '@/features/recommend/history';
+import { wipeHistory } from '@/features/sync/start';
 import { useRecommendSettings } from '@/features/recommend/settings';
 import { hasSupabase } from '@/lib/env';
 
 export default function RecommendSection() {
   const plays = useHistory((s) => s.events.length);
-  const clearHistory = useHistory((s) => s.clear);
   const autoplay = useRecommendSettings((s) => s.autoplay);
   const setAutoplay = useRecommendSettings((s) => s.setAutoplay);
 
@@ -22,21 +23,23 @@ export default function RecommendSection() {
         <li className="flex items-center justify-between gap-3 p-4">
           <span>
             Lịch sử nghe
-            <span className="block text-xs text-muted">{plays} lượt · lưu trên máy này, dùng để đoán gu của bạn.</span>
+            <span className="block text-xs text-muted">{plays} lượt · dùng để đoán gu của bạn; đã đăng nhập thì được đồng bộ giữa các máy.</span>
           </span>
           <button
             type="button"
             className="chip shrink-0"
             disabled={!plays}
             onClick={() => {
-              if (window.confirm('Xóa toàn bộ lịch sử nghe? Gợi ý sẽ phải học lại từ đầu.')) clearHistory();
+              if (window.confirm('Xóa toàn bộ lịch sử nghe trên máy này VÀ trên máy chủ (nếu đã đăng nhập)? Gợi ý sẽ phải học lại từ đầu.')) {
+                wipeHistory().catch((err: Error) => toast(`Chưa xóa được: ${err.message}`));
+              }
             }}
           >
             Xóa
           </button>
         </li>
         <li className="flex justify-between p-4">
-          <span>Đồng bộ like/playlist (Supabase)</span>
+          <span>Tài khoản đồng bộ (Supabase)</span>
           <span className={hasSupabase ? 'text-accent' : 'text-muted'}>{hasSupabase ? 'Đã cấu hình' : 'Chế độ khách'}</span>
         </li>
       </ul>

@@ -6,6 +6,8 @@ import { create } from 'zustand';
 import { clearEvents, deleteEvents, getAllEvents, putEvents, type PlayEvent, type StoredPlayEvent } from '@/lib/db';
 import { uuid, uuidFrom } from '@/lib/id';
 import { platform } from '@/platform';
+import { enqueue } from '@/features/sync/outbox';
+import { eventToRow } from '@/features/sync/rows';
 
 export type { PlayEvent };
 export type PlayKind = PlayEvent['kind'];
@@ -68,7 +70,9 @@ export const useHistory = create<HistoryState>()((set, get) => ({
     };
     const { kept, dropped } = capEvents([...get().events, ev], MAX_EVENTS);
     set({ events: kept });
-    void putEvents([ev]).catch(() => undefined);
+    void putEvents([ev])
+      .then(() => enqueue('play_events', 'insert', eventToRow(ev)))
+      .catch(() => undefined);
     if (dropped.length) void deleteEvents(dropped.map((d) => d.id)).catch(() => undefined);
   },
   clear: () => {
@@ -114,7 +118,10 @@ export async function migrateLegacyHistory(): Promise<number> {
       synced: 0,
     });
   }
-  if (rows.length) await putEvents(rows);
+  if (rows.length) {
+    await putEvents(rows);
+    for (const r of rows) await enqueue('play_events', 'insert', eventToRow(r));
+  }
   try {
     localStorage.removeItem(LEGACY_KEY);
   } catch {

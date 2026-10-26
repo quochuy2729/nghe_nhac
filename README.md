@@ -64,7 +64,7 @@ Lịch sử nghe chỉ lưu trên điện thoại đó (Cài đặt → Gợi ý
 ## 5. Supabase (tùy chọn — đồng bộ like và playlist)
 
 1. <https://supabase.com> → **New project** (gói Free là đủ).
-2. **SQL Editor** → chạy lần lượt `supabase/migrations/20261019000000_init.sql` rồi `supabase/migrations/20261026000000_folder_provider.sql`.
+2. **SQL Editor** → chạy lần lượt `supabase/migrations/20261019000000_init.sql` rồi `supabase/migrations/20261026000000_folder_provider.sql`, rồi **`supabase/migrations/20261102000000_v2_sync.sql`** (v2: lịch sử nghe, đặc trưng âm thanh, tag sửa tay, playlist thông minh, cài đặt — có RLS; đã là người dùng v1 thì chỉ cần chạy file mới).
 3. **Authentication → Providers → Email**: bật Email; dùng cá nhân thì nên tắt “Confirm email”.
 4. **Authentication → URL Configuration**: đặt **Site URL** và **Redirect URLs** là địa chỉ GitHub Pages của app.
 5. Chép **Project URL** và khóa **anon public** vào `.env` (hoặc GitHub Secrets). Không dùng `service_role` key trong app.

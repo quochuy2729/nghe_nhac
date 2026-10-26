@@ -6,6 +6,8 @@ import { toast } from '@/components/toastStore';
 import { useAuth } from '@/features/auth/store';
 import { clearGuest, guestBackend, readGuest } from './guest';
 import { createCloudBackend } from './cloud';
+import { pendingForTable } from '@/features/sync/outbox';
+import { replayLibraryOp, withOfflineQueue } from './offline';
 import type { LibraryBackend, LibrarySnapshot, Playlist } from './types';
 
 interface LibraryState extends LibrarySnapshot {
@@ -26,6 +28,14 @@ export const useLibrary = create<LibraryState>()(() => ({
 
 type CloudBackend = ReturnType<typeof createCloudBackend>;
 let backend: LibraryBackend = guestBackend;
+/** Backend Supabase thật (không bọc hàng đợi offline) — dùng để phát lại outbox. */
+let rawCloud: LibraryBackend | null = null;
+
+/** Phát lại một thao tác like/playlist đã xếp hàng lúc mất mạng (gọi từ syncService). */
+export async function replayLibrary(row: Record<string, unknown>): Promise<void> {
+  if (!rawCloud) throw new Error('Chưa đăng nhập');
+  await replayLibraryOp(rawCloud, row);
+}
 
 /** Cập nhật lạc quan: đổi UI ngay, lỗi thì hoàn tác và báo. */
 async function mutate(apply: (s: LibrarySnapshot) => LibrarySnapshot, remote: () => Promise<void>, failMsg: string) {
@@ -49,6 +59,8 @@ function mapPlaylist(id: string, fn: (p: Playlist) => Playlist) {
 export const library = {
   async refresh(): Promise<void> {
     const b = backend;
+    // Còn thao tác chờ đẩy thì bản trên server chưa đủ: chờ sync xong mới tải lại, kẻo bài vừa thích biến mất.
+    if (useLibrary.getState().mode === 'cloud' && (await pendingForTable('library')) > 0) return;
     if (useLibrary.getState().lastSync === 0) useLibrary.setState({ status: 'loading' });
     try {
       const snap = await b.load();
@@ -147,7 +159,8 @@ export function initLibrary(): void {
   const apply = async (userId: string | null) => {
     if (userId && supabase) {
       const c = createCloudBackend(supabase, userId);
-      backend = c;
+      rawCloud = c;
+      backend = withOfflineQueue(c);
       useLibrary.setState({ mode: 'cloud', lastSync: 0 });
       try {
         await mergeGuestInto(c);
@@ -155,6 +168,7 @@ export function initLibrary(): void {
         toast(`Chưa chuyển được thư viện khách: ${(err as Error).message}`);
       }
     } else {
+      rawCloud = null;
       backend = guestBackend;
       useLibrary.setState({ mode: 'guest', lastSync: 0 });
     }

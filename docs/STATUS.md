@@ -7,7 +7,7 @@ Player đầy đủ + Media Session, lyrics (LRC/LRCLIB), nạp nhạc vào IDB 
 - [x] G1 Tách lớp platform
 - [x] G2 Vỏ Android + đọc thẳng thư mục
 - [x] G3 Phát nhạc native (Media3)
-- [ ] G4 Đồng bộ v2
+- [x] G4 Đồng bộ v2
 - [ ] G5 Phân tích âm thanh + gợi ý thông minh
 - [ ] G6 Trải nghiệm nghe
 - [ ] G7 Quản lý thư viện
@@ -29,7 +29,14 @@ Player đầy đủ + Media Session, lyrics (LRC/LRCLIB), nạp nhạc vào IDB 
 - `PlaybackService` (Media3 ExoPlayer + MediaSession, focus, becoming-noisy, nút ♥) + plugin `NativePlayer`; `NativeAudioEngine` (contract thêm `managesQueue`, `appendWindow`, `setUpcoming`, `setLiked`, event `history`).
 - Store phản chiếu "cửa sổ" native (bài hiện tại + 20 bài kế), nạp thêm khi còn ≤ 5, đồng bộ lại khi sửa hàng đợi; lượt nghe do native đo và ghi vào SharedPreferences, JS `drainEvents()` khi mở/quay lại/đổi bài.
 
+## G4 (đã xong)
+- Migration `20261102000000_v2_sync.sql` (play_events không có update, track_features/overrides, smart_playlists xóa mềm, user_settings) + `supabase/rls.test.ts` (PGlite).
+- `features/sync/`: `syncMerge` (LWW giao hoán, pull lùi 5 phút, backoff), `syncService` (push lô 500 → pull con trỏ), `start` (mở app/foreground/online/10 phút/đăng nhập), `localData` (settings, smart playlists trong `meta`).
+- Lịch sử nghe + like/playlist (hàng đợi offline `library`) đi qua outbox; Cài đặt có mục Đồng bộ và "Xóa lịch sử" xóa cả server.
+
 ## Câu hỏi mở
+- G4: like/playlist vẫn ghi thẳng Supabase khi có mạng, chỉ rơi vào outbox khi mất mạng (giữ nguyên hành vi v1 cho người online). `user_settings`/`smart_playlists` đã có hàm ghi + sync nhưng UI dùng chúng nằm ở G6/G7.
+- G4: xóa lịch sử trên server không xóa được outbox/bản local của MÁY KHÁC; máy đó sẽ đẩy lại lượt nghe của nó khi sync.
 - G3: cửa sổ không vòng lại đầu và không có bài trước bài hiện tại → nút "bài trước" trên notification chỉ tua về đầu bài; nút trong app vẫn đi theo hàng đợi JS. Khi WebView chết thì không nạp thêm được (tối đa 20 bài).
 - G3: `reason: 'error'` do service gắn khi tự nhảy qua bài lỗi; JS chưa hiện toast riêng cho từng bài bị bỏ qua.
 - G2: plugin `scan` không lọc theo `sinceMtime` (spec §7) vì JS cần danh sách đầy đủ để phát hiện bài bị xóa; so id+mtime làm ở JS. Đổi tên file → id đổi (id theo tên) → coi là bài mới, like/playlist của id cũ không tự chuyển.
