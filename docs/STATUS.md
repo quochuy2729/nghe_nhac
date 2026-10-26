@@ -12,7 +12,7 @@ Player đầy đủ + Media Session, lyrics (LRC/LRCLIB), nạp nhạc vào IDB 
 - [x] G6 Trải nghiệm nghe
 - [x] G7 Quản lý thư viện
 - [x] G8 Thống kê / Wrapped
-- [ ] G9 Hoàn thiện + QA
+- [x] G9 Hoàn thiện + QA
 
 ## G1 (đã xong)
 - `src/platform/` (types, web: WebAudioEngine/WebImportSource/WebDecoder stub), `usePlatform()`; store và lyrics chỉ gọi `platform.engine`.
@@ -51,6 +51,11 @@ Player đầy đủ + Media Session, lyrics (LRC/LRCLIB), nạp nhạc vào IDB 
 - `features/stats/compute` (thuần, giờ VN UTC+7): kỳ Tuần/Tháng/Năm/Tùy chọn, tổng phút, top 10 bài/nghệ sĩ/thể loại/album, tỷ lệ bỏ qua, heatmap giờ × thứ, chuỗi ngày, mood, nghệ sĩ mới, so kỳ trước, lọc máy; 20 000 lượt < 200 ms.
 - Trang Thống kê (`/library/stats`, biểu đồ SVG tự viết), Wrapped (thẻ vuốt ngang, PNG 1080×1920, `platform.shareImage`: Web Share/tải về ở web, `@capacitor/share` + `filesystem` ở Android), nút tạo playlist "Top 50 năm YYYY".
 
+## G9 (đã xong)
+- `docs/QA.md`: checklist Poco / iPhone / cả hai máy gom từ mọi phase, có cột Kết quả; mục "Lỗi đã báo" để điền.
+- Onboarding lần đầu theo nền tảng (Poco chọn thư mục; iPhone chép nhạc vào Tệp) + giải thích đồng bộ; "Xem lại hướng dẫn" trong Cài đặt. Trang nặng (Thư viện nhạc, Thống kê, Playlist thông minh) tải lười; README v2 (bảng Poco/iPhone, APK, PWA, Supabase, keystore).
+- CI `Build Android APK` xanh trên `phase/g8` (toàn bộ G2–G8).
+
 ## Câu hỏi mở
 - G8: thêm 2 plugin chính thức `@capacitor/share`, `@capacitor/filesystem` (cần `cap sync` — `build:android` đã gọi). Mood trong thống kê chỉ có cho bài đã phân tích.
 - G8: "nghệ sĩ mới" xét lần đầu nghe trong toàn bộ lịch sử còn lưu (tối đa 20 000 lượt gần nhất); lịch sử bị cắt cũ có thể làm nghệ sĩ cũ trông như mới.
@@ -73,16 +78,4 @@ Player đầy đủ + Media Session, lyrics (LRC/LRCLIB), nạp nhạc vào IDB 
 - `platform.caps` ở web đang để `false` hết cho tới khi tính năng có thật (speed/sleepTimer ở G6, analyze ở G5).
 
 ## QA thủ công cần chủ repo làm
-- [ ] G8: mở Thống kê sau vài ngày nghe: số phút/top khớp cảm nhận, heatmap đúng giờ; thử chuỗi ngày qua nửa đêm; Wrapped vuốt các thẻ, "Chia sẻ ảnh" ra được ảnh (Android: hộp chia sẻ; iPhone: Lưu ảnh/Chia sẻ).
-- [ ] G6: so âm lượng hai bài master to/nhỏ khi bật chuẩn hóa (cần bài đã phân tích); crossfade 6 giây không bị click/khoảng lặng; cùng album liền nhau không crossfade.
-- [ ] G6: hẹn giờ 5 phút khi tắt màn hình dừng đúng giờ (Poco), giảm dần 10 giây cuối; "Hết bài này"; trên iPhone nhạc dừng đúng giờ.
-- [ ] G6: EQ Bass/Vocal nghe khác rõ; tốc độ 1.5× giữ/không giữ cao độ; mở lại file podcast > 10 phút phát tiếp từ chỗ cũ.
-- [ ] G3: khóa màn hình nghe 30 phút liên tục qua nhiều bài (chuyển bài khi tắt màn hình, notification có ảnh bìa).
-- [ ] G3: nút tai nghe Bluetooth (play/pause/next/prev); rút tai nghe thì dừng; có cuộc gọi đến thì dừng rồi phát tiếp.
-- [ ] G3: lịch sử nghe lúc khóa màn hình hiện đủ khi mở app; nút ♥ trên notification đổi trạng thái thích.
-- [ ] G3: xóa một file đang trong hàng đợi rồi nghe tới nó → tự nhảy sang bài kế.
-- [ ] G2: tạo keystore + 4 secrets (README §8), push → tải APK từ Artifacts, cài lên Poco.
-- [ ] G2: chọn thư mục `Music/` ~1000 bài → quét lần đầu < 2 phút; quét lại khi không đổi < 5 giây.
-- [ ] G2: thêm/xóa/đổi tên một file rồi mở lại app → danh sách cập nhật; like/lịch sử của bài bị xóa không mất.
-- [ ] G2: phát một bài (kể cả tên có dấu, dấu cách); xem ảnh bìa và lời .lrc cùng tên hiện đúng.
-- [ ] G2: bỏ quyền thư mục trong cài đặt hệ thống → app không xóa bài, chọn lại thư mục được.
+Xem [`docs/QA.md`](QA.md) — điền cột Kết quả sau khi thử trên Poco và iPhone, rồi báo lỗi theo mẫu trong `PROMPT.md`.

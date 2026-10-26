@@ -1,7 +1,5 @@
-import type { ComponentType } from 'react';
-import { BrowsePage } from '@/pages/BrowsePage';
+import { lazy, type ComponentType, type LazyExoticComponent } from 'react';
 import { DownloadsPage } from '@/pages/DownloadsPage';
-import { GroupPage } from '@/pages/GroupPage';
 import { HomePage } from '@/pages/HomePage';
 import { LibraryPage } from '@/pages/LibraryPage';
 import { LikedPage } from '@/pages/LikedPage';
@@ -9,19 +7,23 @@ import { LyricsPage } from '@/pages/LyricsPage';
 import { PlayerPage } from '@/pages/PlayerPage';
 import { PlaylistPage } from '@/pages/PlaylistPage';
 import { SearchPage } from '@/pages/SearchPage';
-import { StatsPage } from '@/pages/StatsPage';
 import { SettingsPage } from '@/pages/SettingsPage';
-import { SmartEditPage } from '@/pages/SmartEditPage';
-import { SmartPlaylistsPage } from '@/pages/SmartPlaylistsPage';
 
 export interface AppRoute {
   /** Đường dẫn tương đối; bỏ trống khi `index`. */
   path?: string;
   index?: boolean;
-  Component: ComponentType;
+  Component: ComponentType | LazyExoticComponent<ComponentType>;
   /** true = nằm trong Layout (thanh điều hướng + mini-player); false = toàn màn hình. */
   layout: boolean;
 }
+
+// Trang nặng/ít dùng tải lười để bundle chính nhỏ (App.tsx bọc Suspense).
+const BrowsePage = lazy(() => import('@/pages/BrowsePage').then((m) => ({ default: m.BrowsePage })));
+const GroupPage = lazy(() => import('@/pages/GroupPage').then((m) => ({ default: m.GroupPage })));
+const StatsPage = lazy(() => import('@/pages/StatsPage').then((m) => ({ default: m.StatsPage })));
+const SmartPlaylistsPage = lazy(() => import('@/pages/SmartPlaylistsPage').then((m) => ({ default: m.SmartPlaylistsPage })));
+const SmartEditPage = lazy(() => import('@/pages/SmartEditPage').then((m) => ({ default: m.SmartEditPage })));
 
 /** Thêm trang mới = thêm một dòng vào đây (App.tsx tự map). */
 export const routes: AppRoute[] = [

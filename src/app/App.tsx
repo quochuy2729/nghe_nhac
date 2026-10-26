@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { Suspense, useEffect } from 'react';
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { Toast } from '@/components/Toast';
 import { initAuth } from '@/features/auth/store';
@@ -10,6 +10,7 @@ import { TrackMenu } from '@/features/library/TrackMenu';
 import { initPlayer } from '@/features/player/store';
 import { loadHistory } from '@/features/recommend/history';
 import { initAnalysis } from '@/features/analyze/service';
+import { Onboarding } from '@/features/onboarding/Onboarding';
 import { initListening } from '@/features/listening/settings';
 import { loadSmart } from '@/features/smart/store';
 import { startSync } from '@/features/sync/start';
@@ -50,14 +51,17 @@ export function App() {
   return (
     <HashRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <ErrorBoundary>
+        <Suspense fallback={<p role="status" className="p-8 text-center text-sm text-muted">Đang tải…</p>}>
         <Routes>
           <Route element={<Layout />}>{routes.filter((r) => r.layout).map(renderRoute)}</Route>
           {routes.filter((r) => !r.layout).map(renderRoute)}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </Suspense>
         <CloseOverlaysOnNavigate />
         <TrackMenu />
         <TagEditor />
+        <Onboarding />
         <PlaylistPicker />
         <Toast />
       </ErrorBoundary>

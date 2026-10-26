@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { useDownloads } from '@/features/downloads/manager';
 import { ImportMusic } from '@/features/folder/ImportMusic';
 import { LinkedFolders } from '@/features/folder/LinkedFolders';
+import { useOnboarding } from '@/features/onboarding/store';
 import { platform } from '@/platform';
 import { useFolder } from '@/providers/folder';
 import { formatBytes } from '@/lib/utils';
@@ -37,6 +38,9 @@ export default function MusicSection() {
         )}
         <ImportMusic />
         {linked && <LinkedFolders />}
+        <button type="button" className="mt-4 min-h-[44px] text-xs text-muted underline" onClick={() => useOnboarding.getState().reopen()}>
+          Xem lại hướng dẫn
+        </button>
       </div>
     </section>
   );

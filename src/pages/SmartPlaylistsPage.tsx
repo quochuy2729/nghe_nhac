@@ -32,6 +32,7 @@ export function SmartPlaylistsPage() {
         </Link>
       </div>
 
+      {lists.length === 0 && <p className="px-4 py-4 text-center text-sm text-muted">Chưa có playlist thông minh nào. Tạo mới hoặc thêm từ mẫu bên dưới.</p>}
       {lists.length > 0 && (
         <ul>
           {lists.map((p) => (
