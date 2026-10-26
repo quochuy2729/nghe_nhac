@@ -68,7 +68,7 @@ jobs:
       - name: Surface Gradle errors
         if: failure()
         run: |
-          grep -v "^$" "$RUNNER_TEMP/gradle.log" | grep -vE "^(Download|Starting|Daemon|Configuration on demand)" | tail -45 | while IFS= read -r l; do echo "::error::${l:0:900}"; done
+          sed -n '/FAILURE:/,/BUILD FAILED/p' "$RUNNER_TEMP/gradle.log" | grep -v "^$" | head -40 | while IFS= read -r l; do echo "::error::${l:0:900}"; done
 
       - uses: actions/upload-artifact@v4
         with:
