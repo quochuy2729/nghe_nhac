@@ -10,7 +10,7 @@ Player đầy đủ + Media Session, lyrics (LRC/LRCLIB), nạp nhạc vào IDB 
 - [x] G4 Đồng bộ v2
 - [x] G5 Phân tích âm thanh + gợi ý thông minh
 - [x] G6 Trải nghiệm nghe
-- [ ] G7 Quản lý thư viện
+- [x] G7 Quản lý thư viện
 - [ ] G8 Thống kê / Wrapped
 - [ ] G9 Hoàn thiện + QA
 
@@ -43,7 +43,13 @@ Player đầy đủ + Media Session, lyrics (LRC/LRCLIB), nạp nhạc vào IDB 
 - `NativeDecoder` (MediaExtractor + MediaCodec → PCM file trong cache) thay WebDecoder trên Android. Service Media3 thêm EQ (Equalizer/LoudnessEnhancer), gain theo bài, crossfade 2 ExoPlayer, hẹn giờ native; plugin thêm `setSpeed/setEq/setNormalize/setCrossfade/setSleepTimer`.
 - `features/listening/`: `logic` (thuần: hẹn giờ, gain, nhớ vị trí, EQ, kéo/vuốt), `settings` (đồng bộ `user_settings`), `sleep`, `resume`, `PlaybackOptionsSheet`; Cài đặt › Trải nghiệm nghe (ẩn trên iPhone). Hàng đợi: kéo ≡ để sắp xếp, vuốt trái để xóa.
 
+## G7 (đã xong)
+- Thư viện nhạc (`/library/browse`): tab Bài hát · Album · Nghệ sĩ · Thể loại · Thư mục · Trùng bài, sắp xếp + lọc không dấu, chọn nhiều bài (playlist/hàng đợi/thích/sửa tag); `VirtualList` (dòng cao cố định) nên 5000 bài chỉ dựng vài chục dòng DOM.
+- Sửa tag = override (`overrideActions`: gộp, khôi phục, ảnh bìa 300px), đồng bộ `track_overrides`, `loadFolder` áp override. Playlist thông minh: `smart/evaluate` (mọi field/op), trình tạo luật + xem trước + 3 mẫu, đồng bộ `smart_playlists`.
+
 ## Câu hỏi mở
+- G7: "Bài trùng" chỉ liệt kê và cho nghe thử; không có nút xóa file (app không ghi vào thư mục nhạc). Album trùng tên của hai nghệ sĩ được tách và gắn tên nghệ sĩ.
+- G7: bài đang nằm sẵn trong hàng đợi đã lưu giữ tag cũ cho tới khi phát lại từ danh sách mới.
 - G6: crossfade dùng player phụ phát nốt bài cũ từ vị trí hiện tại nên có thể lệch vài chục ms; lượt nghe của bài cũ được ghi sớm bằng thời lượng crossfade. Chưa nghe thử trên máy thật.
 - G6: iPhone không giảm dần âm lượng khi hẹn giờ (`audio.volume` chỉ đọc); gain chuẩn hóa chỉ có trên Android. ReplayGain chỉ đọc được từ file nạp qua web (Android dùng loudness đã phân tích).
 - G5: tâm trạng/`energy`/`brightness` là ước lượng bằng luật + hằng số cố định (không học máy). BPM chỉ tin cậy với nhạc có nhịp rõ; `bpmConf` thấp thì bỏ qua.

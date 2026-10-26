@@ -34,6 +34,10 @@ export interface SyncDeps {
   replayLibrary?: (row: Row) => Promise<void>;
   /** Máy khác vừa đổi cài đặt đồng bộ (`user_settings.data`): áp vào app. */
   onSettingsPulled?: (data: Record<string, unknown>) => void;
+  /** Tag sửa tay từ máy khác vừa về: tải lại thư viện hiển thị. */
+  onOverridesPulled?: () => void;
+  /** Playlist thông minh vừa được gộp từ server. */
+  onSmartPulled?: () => void;
   /** Gọi sau khi pull lượt nghe mới để làm mới bộ nhớ (useHistory). */
   onEventsPulled?: () => Promise<void> | void;
   now?: () => number;
@@ -111,22 +115,28 @@ const SPECS: PullSpec[] = [
   {
     table: 'track_overrides',
     column: 'updated_at',
-    async apply(rows) {
+    async apply(rows, deps) {
+      let changed = false;
       for (const r of rows) {
         const remote = rowToOverride(r);
         const local = await getOverride(remote.trackId);
-        if (!local || remote.updatedAt > local.updatedAt) await putOverride(remote);
+        if (!local || remote.updatedAt > local.updatedAt) {
+          await putOverride(remote);
+          changed = true;
+        }
       }
+      if (changed) deps.onOverridesPulled?.();
     },
   },
   {
     table: 'smart_playlists',
     column: 'updated_at',
-    async apply(rows) {
+    async apply(rows, deps) {
       const remote = rows.map((r) => rowToSmart(r, ms(r.updated_at)));
       const local = await getAllSmartPlaylists();
       const { merged } = mergeVersioned(local, remote, (p) => p.id);
       await replaceSmartPlaylists(merged);
+      deps.onSmartPulled?.();
     },
   },
   {

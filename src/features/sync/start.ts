@@ -2,6 +2,8 @@
 import { useAuth } from '@/features/auth/store';
 import { library, replayLibrary } from '@/features/library/store';
 import { hydrateListening } from '@/features/listening/settings';
+import { loadSmart } from '@/features/smart/store';
+import { loadFolder } from '@/providers/folder';
 import { loadHistory, useHistory } from '@/features/recommend/history';
 import { supabase } from '@/lib/supabase';
 import { clearTable } from './outbox';
@@ -15,6 +17,8 @@ function currentDeps(): SyncDeps | null {
     replayLibrary,
     onEventsPulled: loadHistory,
     onSettingsPulled: hydrateListening,
+    onOverridesPulled: () => void loadFolder(),
+    onSmartPulled: () => void loadSmart(),
   };
 }
 

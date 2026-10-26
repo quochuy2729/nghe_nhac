@@ -95,6 +95,24 @@ export function LibraryPage() {
           </Link>
         </li>
         <li>
+          <Link to="/library/browse" className="flex min-h-[72px] items-center gap-3 px-4 py-2 active:bg-white/5">
+            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded bg-gradient-to-br from-sky-700 to-sky-300 text-2xl">🎵</span>
+            <span className="min-w-0">
+              <span className="block truncate font-semibold">Duyệt thư viện</span>
+              <span className="block text-sm text-muted">Bài hát · Album · Nghệ sĩ · Thể loại · Thư mục</span>
+            </span>
+          </Link>
+        </li>
+        <li>
+          <Link to="/library/smart" className="flex min-h-[72px] items-center gap-3 px-4 py-2 active:bg-white/5">
+            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded bg-gradient-to-br from-fuchsia-700 to-indigo-400 text-2xl">✨</span>
+            <span className="min-w-0">
+              <span className="block truncate font-semibold">Playlist thông minh</span>
+              <span className="block text-sm text-muted">Tự cập nhật theo luật của bạn</span>
+            </span>
+          </Link>
+        </li>
+        <li>
           <Link to="/library/downloads" className="flex min-h-[72px] items-center gap-3 px-4 py-2 active:bg-white/5">
             <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded bg-gradient-to-br from-emerald-800 to-emerald-400">
               <DownloadIcon size={26} />

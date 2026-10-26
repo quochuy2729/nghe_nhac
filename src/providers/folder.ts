@@ -11,9 +11,11 @@ import {
   putAudio,
   putLyricsRecord,
   putTrack,
+  getAllOverrides,
   hasAudio,
   tracksByProvider,
 } from '@/lib/db';
+import { applyOverride } from '@/lib/overrides';
 import { trackIdFor } from '@/lib/id';
 import { normalizeText } from '@/lib/text';
 import type { MusicProvider, Track } from './types';
@@ -51,7 +53,7 @@ export function normalizeGenres(raw: readonly string[] | undefined): string[] {
   return [...out.values()];
 }
 
-async function pictureToDataUrl(data: Uint8Array, format: string): Promise<string | undefined> {
+export async function pictureToDataUrl(data: Uint8Array, format: string): Promise<string | undefined> {
   try {
     const bitmap = await createImageBitmap(new Blob([data as BlobPart], { type: format }));
     const size = 300;
@@ -214,7 +216,10 @@ export const useFolder = create<FolderState>()(() => ({ tracks: [], status: 'idl
 export async function loadFolder(): Promise<void> {
   if (useFolder.getState().status === 'idle') useFolder.setState({ status: 'loading' });
   try {
-    useFolder.setState({ tracks: await tracksByProvider('folder'), status: 'ready', error: null });
+    // Tag sửa tay (overrides) chồng lên tag gốc; không ghi vào file nhạc.
+    const [stored, overrides] = await Promise.all([tracksByProvider('folder'), getAllOverrides()]);
+    const byId = new Map(overrides.map((o) => [o.trackId, o]));
+    useFolder.setState({ tracks: stored.map((t) => applyOverride(t, byId.get(t.id))), status: 'ready', error: null });
   } catch (err) {
     useFolder.setState({ status: 'error', error: `Không đọc được thư viện trên máy: ${(err as Error).message}` });
   }

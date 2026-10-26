@@ -44,7 +44,7 @@ export interface FeaturesRecord {
 /** Tag sửa tay. Hiển thị = track ⊕ patch (xem lib/overrides.ts). */
 export interface OverrideRecord {
   trackId: string;
-  patch: Partial<Pick<Track, 'title' | 'artist' | 'album' | 'albumArtist' | 'genre' | 'year' | 'bpm'>>;
+  patch: Partial<Pick<Track, 'title' | 'artist' | 'album' | 'albumArtist' | 'genre' | 'year' | 'bpm' | 'artworkUrl'>>;
   updatedAt: number;
 }
 

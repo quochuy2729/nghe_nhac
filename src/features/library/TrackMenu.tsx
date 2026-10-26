@@ -6,6 +6,7 @@ import { player } from '@/features/player/store';
 import { usePlaylistPicker, useTrackMenu } from './trackMenuStore';
 import { removeDownload } from '@/features/downloads/manager';
 import { library, useLibrary } from './store';
+import { useTagEditor } from './tagEditorStore';
 
 export function TrackMenu() {
   const track = useTrackMenu((s) => s.track);
@@ -35,6 +36,7 @@ export function TrackMenu() {
             label={liked ? 'Bỏ khỏi Bài hát đã thích' : 'Thêm vào Bài hát đã thích'}
             onClick={run(() => void library.toggleLike(track))}
           />
+          <SheetItem icon={<SparkIcon size={22} />} label="Sửa tag" onClick={run(() => useTagEditor.getState().open([track.id]))} />
           <SheetItem icon={<LibraryIcon size={22} />} label="Thêm vào playlist" onClick={run(() => openPicker([track]))} />
           {playlistId && playlistIndex != null && (
             <SheetItem

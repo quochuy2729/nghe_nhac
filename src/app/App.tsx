@@ -5,11 +5,13 @@ import { initAuth } from '@/features/auth/store';
 import { initDownloads } from '@/features/downloads/manager';
 import { PlaylistPicker } from '@/features/library/PlaylistPicker';
 import { initLibrary } from '@/features/library/store';
+import { TagEditor } from '@/features/library/TagEditor';
 import { TrackMenu } from '@/features/library/TrackMenu';
 import { initPlayer } from '@/features/player/store';
 import { loadHistory } from '@/features/recommend/history';
 import { initAnalysis } from '@/features/analyze/service';
 import { initListening } from '@/features/listening/settings';
+import { loadSmart } from '@/features/smart/store';
 import { startSync } from '@/features/sync/start';
 import { platform } from '@/platform';
 import { loadFolder } from '@/providers/folder';
@@ -32,6 +34,7 @@ export function App() {
     initDownloads();
     void loadFolder();
     void loadHistory();
+    void loadSmart();
     const stopRescan = platform.library.startAutoRescan?.();
     const stopSync = startSync();
     const stopAnalysis = initAnalysis();
@@ -54,6 +57,7 @@ export function App() {
         </Routes>
         <CloseOverlaysOnNavigate />
         <TrackMenu />
+        <TagEditor />
         <PlaylistPicker />
         <Toast />
       </ErrorBoundary>
