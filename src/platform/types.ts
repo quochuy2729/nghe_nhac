@@ -39,9 +39,18 @@ export type EngineEvent =
   | { type: 'trackChanged'; index: number; reason: 'auto' | 'user' | 'error'; trackId?: string }
   | { type: 'ended' } // hết hàng đợi đã đẩy xuống
   | { type: 'error'; trackId: string; message: string }
+  /** Hẹn giờ native đã hết/bị hủy (`active: false`) hoặc đã bắt đầu. */
+  | { type: 'sleep'; active: boolean }
   | { type: 'remote'; action: 'next' | 'prev' | 'play' | 'pause' | 'toggleLike' }
   /** Lượt nghe do native ghi (kể cả lúc app ở nền), lấy ra khi app mở/quay lại. */
   | { type: 'history'; events: { trackId: string; playedSec: number; durationSec: number; endedAt: number }[] };
+
+/** Một bài trong cửa sổ đẩy xuống engine. `gainDb` = chuẩn hóa âm lượng (dB) áp khi bài bắt đầu. */
+export interface WindowItem {
+  track: Track;
+  url: string;
+  gainDb?: number;
+}
 
 export interface AudioEngine {
   /**
@@ -50,26 +59,34 @@ export interface AudioEngine {
    */
   readonly managesQueue?: boolean;
   /** Thêm bài vào cuối cửa sổ mà không làm gián đoạn bài đang phát. */
-  appendWindow?(items: { track: Track; url: string }[]): Promise<void>;
+  appendWindow?(items: WindowItem[]): Promise<void>;
   /** Thay các bài SAU bài đang phát (hàng đợi vừa đổi). */
-  setUpcoming?(items: { track: Track; url: string }[]): Promise<void>;
+  setUpcoming?(items: WindowItem[]): Promise<void>;
   /** Trạng thái thích của bài đang phát (nút thích trên notification). */
   setLiked?(liked: boolean): Promise<void>;
   /**
    * JS là chủ hàng đợi; đẩy xuống "cửa sổ" bài hiện tại + tối đa 20 bài kế. Native tự chuyển bài khi màn hình tắt.
    * Cửa sổ rỗng = dừng và bỏ bài hiện tại.
    */
-  setWindow(items: { track: Track; url: string }[], startIndex: number, startSec?: number): Promise<void>;
+  setWindow(items: WindowItem[], startIndex: number, startSec?: number): Promise<void>;
   play(): Promise<void>;
   pause(): Promise<void>;
   seek(sec: number): Promise<void>;
   skipTo(index: number): Promise<void>;
   /** Nội suy từ event cuối + thời gian trôi qua (dùng cho lyrics). */
   getPosition(): number;
-  setSpeed?(x: number): Promise<void>;
-  setEq?(bandsDb: number[]): Promise<void>; // 5 hoặc 10 band
+  /** Tốc độ 0.5–2×; `preservePitch` = giữ cao độ. */
+  setSpeed?(x: number, preservePitch?: boolean): Promise<void>;
+  setEq?(bandsDb: number[], enabled?: boolean): Promise<void>; // 5 band
   setGainDb?(db: number): Promise<void>; // chuẩn hóa âm lượng theo bài
   setCrossfade?(sec: number): Promise<void>;
+  /** Bật/tắt áp `gainDb` theo bài (chuẩn hóa âm lượng). */
+  setNormalize?(enabled: boolean): Promise<void>;
+  /**
+   * Hẹn giờ chạy NATIVE (vẫn đúng giờ khi tắt màn hình): `endAt` = mốc tuyệt đối (epoch ms) hoặc null; `endOfTrack` = dừng khi hết bài.
+   * Engine không có hàm này (web) thì store tự kiểm trong sự kiện `position`.
+   */
+  setSleepTimer?(opts: { endAt: number | null; endOfTrack: boolean }): Promise<void>;
   /**
    * Chỉ web: gọi ĐỒNG BỘ trong handler chạm của người dùng để mở khóa <audio> trên iOS
    * (lần phát đầu tiên bắt buộc đến từ thao tác chạm).

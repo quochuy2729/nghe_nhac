@@ -2,11 +2,10 @@
  * Engine Android: ExoPlayer trong PlaybackService (Media3). JS chỉ đẩy "cửa sổ" hàng đợi; native tự chuyển bài
  * (kể cả khi tắt màn hình) và ghi lượt nghe vào hàng chờ để JS lấy khi mở lại app.
  */
-import type { Track } from '@/providers/types';
-import type { AudioEngine, EngineEvent } from '../types';
+import type { AudioEngine, EngineEvent, WindowItem } from '../types';
 import { NativePlayer, type NativeItem, type NativePlayerPlugin } from './nativePlayer';
 
-type Item = { track: Track; url: string };
+type Item = WindowItem;
 
 /** Ảnh bìa trong WebView là `http(s)://localhost/_capacitor_file_/<path>`; native cần `file://<path>`. */
 export function nativeArtworkUri(artworkUrl: string | undefined): string | undefined {
@@ -16,7 +15,7 @@ export function nativeArtworkUri(artworkUrl: string | undefined): string | undef
   return artworkUrl.startsWith('file://') || artworkUrl.startsWith('content://') ? artworkUrl : undefined;
 }
 
-export function toNativeItem({ track, url }: Item): NativeItem {
+export function toNativeItem({ track, url, gainDb }: Item): NativeItem {
   const artworkUri = nativeArtworkUri(track.artworkUrl);
   return {
     id: track.id,
@@ -26,6 +25,7 @@ export function toNativeItem({ track, url }: Item): NativeItem {
     ...(track.album ? { album: track.album } : {}),
     ...(artworkUri ? { artworkUri } : {}),
     durationMs: Math.round(track.durationSec * 1000),
+    ...(gainDb ? { gainDb } : {}),
   };
 }
 
@@ -88,6 +88,7 @@ export class NativeAudioEngine implements AudioEngine {
       void this.drainHistory();
     });
     void plugin.addListener('error', (e) => this.emit({ type: 'error', trackId: e.trackId, message: e.message }));
+    void plugin.addListener('sleep', (e) => this.emit({ type: 'sleep', active: e.active }));
     void plugin.addListener('remote', (e) => this.emit({ type: 'remote', action: e.action }));
     this.deps.onVisibilityChange((visible) => {
       void plugin.setUiVisible({ visible });
@@ -161,6 +162,26 @@ export class NativeAudioEngine implements AudioEngine {
     this.index = index;
     this.pos = { sec: 0, at: this.deps.now() };
     await this.deps.plugin.skipTo({ index });
+  }
+
+  async setSpeed(x: number, preservePitch = true): Promise<void> {
+    await this.deps.plugin.setSpeed({ speed: x, preservePitch });
+  }
+
+  async setEq(bandsDb: number[], enabled = true): Promise<void> {
+    await this.deps.plugin.setEq({ bands: bandsDb, enabled });
+  }
+
+  async setNormalize(enabled: boolean): Promise<void> {
+    await this.deps.plugin.setNormalize({ enabled });
+  }
+
+  async setCrossfade(sec: number): Promise<void> {
+    await this.deps.plugin.setCrossfade({ sec });
+  }
+
+  async setSleepTimer(opts: { endAt: number | null; endOfTrack: boolean }): Promise<void> {
+    await this.deps.plugin.setSleepTimer({ endAt: opts.endAt ?? 0, endOfTrack: opts.endOfTrack });
   }
 
   async setLiked(liked: boolean): Promise<void> {

@@ -137,6 +137,17 @@ export class WebAudioEngine implements AudioEngine {
     return getAudio().currentTime || 0;
   }
 
+  /** playbackRate bị đặt lại khi đổi src nên đặt cả defaultPlaybackRate. `preservesPitch` có sẵn trên Safari/Chrome mới. */
+  async setSpeed(x: number, preservePitch = true): Promise<void> {
+    this.attach();
+    const a = getAudio() as HTMLAudioElement & { preservesPitch?: boolean; webkitPreservesPitch?: boolean; mozPreservesPitch?: boolean };
+    a.defaultPlaybackRate = x;
+    a.playbackRate = x;
+    a.preservesPitch = preservePitch;
+    a.webkitPreservesPitch = preservePitch;
+    a.mozPreservesPitch = preservePitch;
+  }
+
   unlock(): void {
     unlockAudio();
   }

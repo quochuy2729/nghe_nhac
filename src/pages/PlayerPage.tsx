@@ -7,6 +7,8 @@ import { useArtworkColor } from '@/lib/color';
 import { TransportControls } from '@/features/player/Controls';
 import { SeekBar } from '@/features/player/SeekBar';
 import { QueueSheet } from '@/features/player/QueueSheet';
+import { PlaybackOptionsSheet } from '@/features/listening/PlaybackOptionsSheet';
+import { platform } from '@/platform';
 import { useCurrentTrack } from '@/features/player/hooks';
 import { useQueueStore, usePlayback, player } from '@/features/player/store';
 import { LikeButton } from '@/features/library/LikeButton';
@@ -19,6 +21,7 @@ export function PlayerPage() {
   const color = useArtworkColor(track?.artworkUrl);
   const goBack = useGoBack();
   const [queueOpen, setQueueOpen] = useState(false);
+  const [optionsOpen, setOptionsOpen] = useState(false);
 
   return (
     <div
@@ -78,6 +81,11 @@ export function PlayerPage() {
           )}
 
           <div className="mt-4 flex items-center justify-between">
+            {(platform.caps.speed || platform.caps.sleepTimer) && (
+              <button type="button" onClick={() => setOptionsOpen(true)} className="icon-btn gap-2 px-2 text-sm text-white/80">
+                Tốc độ · Hẹn giờ
+              </button>
+            )}
             <button type="button" onClick={() => player.playRadio(track)} className="icon-btn gap-2 px-2 text-sm text-white/80">
               Radio
             </button>
@@ -92,6 +100,7 @@ export function PlayerPage() {
         </>
       )}
       <QueueSheet open={queueOpen} onClose={() => setQueueOpen(false)} />
+      <PlaybackOptionsSheet open={optionsOpen} onClose={() => setOptionsOpen(false)} />
     </div>
   );
 }

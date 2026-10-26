@@ -32,6 +32,8 @@ export interface SyncDeps {
   client: SyncClient;
   /** Phát lại một thao tác like/playlist đã xếp hàng lúc mất mạng (bảng `library`). */
   replayLibrary?: (row: Row) => Promise<void>;
+  /** Máy khác vừa đổi cài đặt đồng bộ (`user_settings.data`): áp vào app. */
+  onSettingsPulled?: (data: Record<string, unknown>) => void;
   /** Gọi sau khi pull lượt nghe mới để làm mới bộ nhớ (useHistory). */
   onEventsPulled?: () => Promise<void> | void;
   now?: () => number;
@@ -130,12 +132,15 @@ const SPECS: PullSpec[] = [
   {
     table: 'user_settings',
     column: 'updated_at',
-    async apply(rows) {
+    async apply(rows, deps) {
       const r = rows.at(-1);
       if (!r) return;
       const remote = { data: (r.data ?? {}) as Record<string, unknown>, updatedAt: ms(r.updated_at) };
       const local = await getUserSettings();
-      if (!local || remote.updatedAt > local.updatedAt) await replaceUserSettings(remote);
+      if (!local || remote.updatedAt > local.updatedAt) {
+        await replaceUserSettings(remote);
+        deps.onSettingsPulled?.(remote.data);
+      }
     },
   },
 ];

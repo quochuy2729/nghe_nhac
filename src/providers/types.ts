@@ -16,6 +16,8 @@ export interface Track {
   genre?: string[];
   year?: number;
   bpm?: number;
+  /** ReplayGain của bài (dB) nếu file có tag; dùng để chuẩn hóa âm lượng. */
+  replayGainDb?: number;
   durationSec: number;
   artworkUrl?: string;
   /** Luôn true với bài nạp vào máy; giữ trường để khớp schema Supabase. */

@@ -13,6 +13,7 @@ export const settingsSections: SettingsSection[] = [
   { id: 'account', Component: lazy(() => import('./sections/AccountSection')) },
   { id: 'music', Component: lazy(() => import('./sections/MusicSection')) },
   { id: 'recommend', Component: lazy(() => import('./sections/RecommendSection')) },
+  { id: 'listening', Component: lazy(() => import('./sections/ListeningSection')) },
   { id: 'analyze', Component: lazy(() => import('./sections/AnalyzeSection')) },
   { id: 'sync', Component: lazy(() => import('./sections/SyncSection')) },
 ];

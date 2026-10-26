@@ -5,6 +5,10 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.media.AudioFormat
+import android.media.MediaCodec
+import android.media.MediaExtractor
+import android.media.MediaFormat
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.provider.DocumentsContract
@@ -19,6 +23,8 @@ import com.getcapacitor.annotation.PluginMethod
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.security.MessageDigest
 import java.text.Normalizer
 import java.util.ArrayDeque
@@ -290,6 +296,124 @@ class MusicLibraryPlugin : Plugin() {
             call.resolve(JSObject().put("text", text ?: JSONObject.NULL))
         } catch (e: Exception) {
             call.resolve(JSObject().put("text", JSONObject.NULL))
+        }
+    }
+
+    private var pcmCounter = 0
+
+    /**
+     * Giải mã đoạn [startSec, startSec+durSec) thành PCM mono int16 @ sampleRate (MediaExtractor + MediaCodec),
+     * ghi ra file trong cache; JS đọc lại qua convertFileSrc (tránh nhồi vài MB base64 qua cầu nối).
+     */
+    @PluginMethod
+    fun decodeSegment(call: PluginCall) {
+        val uri = call.getString("uri") ?: return call.reject("thiếu uri")
+        val startSec = call.getDouble("startSec", 0.0) ?: 0.0
+        val durSec = call.getDouble("durSec", 45.0) ?: 45.0
+        val outRate = call.getInt("sampleRate", 22050) ?: 22050
+        try {
+            val file = decodeToMono16(Uri.parse(uri), startSec, durSec, outRate)
+            call.resolve(JSObject().put("path", file.absolutePath).put("samples", file.length() / 2))
+        } catch (e: Exception) {
+            call.reject("Không giải mã được: ${e.message}")
+        }
+    }
+
+    private fun decodeToMono16(uri: Uri, startSec: Double, durSec: Double, outRate: Int): File {
+        val extractor = MediaExtractor()
+        var codec: MediaCodec? = null
+        try {
+            extractor.setDataSource(context, uri, null)
+            var trackIdx = -1
+            var format: MediaFormat? = null
+            for (i in 0 until extractor.trackCount) {
+                val f = extractor.getTrackFormat(i)
+                if (f.getString(MediaFormat.KEY_MIME)?.startsWith("audio/") == true) {
+                    trackIdx = i
+                    format = f
+                    break
+                }
+            }
+            if (trackIdx < 0 || format == null) throw IllegalStateException("không có luồng audio")
+            extractor.selectTrack(trackIdx)
+            val startUs = (startSec * 1_000_000).toLong()
+            val endUs = ((startSec + durSec) * 1_000_000).toLong()
+            extractor.seekTo(startUs, MediaExtractor.SEEK_TO_CLOSEST_SYNC)
+
+            val c = MediaCodec.createDecoderByType(format.getString(MediaFormat.KEY_MIME)!!)
+            codec = c
+            c.configure(format, null, null, 0)
+            c.start()
+
+            var rate = format.getInteger(MediaFormat.KEY_SAMPLE_RATE)
+            var channels = format.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
+            var pcmFloat = false
+            var mono = FloatArray(rate * (durSec.toInt() + 2))
+            var n = 0
+            val info = MediaCodec.BufferInfo()
+            var inputDone = false
+            var outputDone = false
+            val deadline = System.currentTimeMillis() + 30_000
+            while (!outputDone && System.currentTimeMillis() < deadline) {
+                if (!inputDone) {
+                    val idx = c.dequeueInputBuffer(10_000)
+                    if (idx >= 0) {
+                        val buf = c.getInputBuffer(idx)!!
+                        val size = extractor.readSampleData(buf, 0)
+                        if (size < 0 || extractor.sampleTime > endUs) {
+                            c.queueInputBuffer(idx, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+                            inputDone = true
+                        } else {
+                            c.queueInputBuffer(idx, 0, size, extractor.sampleTime, 0)
+                            extractor.advance()
+                        }
+                    }
+                }
+                val out = c.dequeueOutputBuffer(info, 10_000)
+                if (out == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+                    val f = c.outputFormat
+                    rate = f.getInteger(MediaFormat.KEY_SAMPLE_RATE)
+                    channels = f.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
+                    pcmFloat = f.containsKey(MediaFormat.KEY_PCM_ENCODING) &&
+                        f.getInteger(MediaFormat.KEY_PCM_ENCODING) == AudioFormat.ENCODING_PCM_FLOAT
+                } else if (out >= 0) {
+                    val buf = c.getOutputBuffer(out)!!
+                    if (info.size > 0 && info.presentationTimeUs >= startUs) {
+                        buf.position(info.offset)
+                        buf.limit(info.offset + info.size)
+                        val bo = buf.slice().order(ByteOrder.nativeOrder())
+                        val frames = info.size / (if (pcmFloat) 4 else 2) / channels
+                        if (n + frames > mono.size) mono = mono.copyOf((n + frames) * 2)
+                        for (i in 0 until frames) {
+                            var sum = 0f
+                            for (ch in 0 until channels) sum += if (pcmFloat) bo.getFloat() else bo.getShort() / 32768f
+                            mono[n++] = sum / channels
+                        }
+                    }
+                    if (info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) outputDone = true
+                    c.releaseOutputBuffer(out, false)
+                }
+            }
+
+            // Lấy mẫu lại tuyến tính về outRate rồi ghi int16 little-endian.
+            val outCount = (n.toLong() * outRate / rate).toInt()
+            val bytes = ByteBuffer.allocate(outCount * 2).order(ByteOrder.LITTLE_ENDIAN)
+            for (i in 0 until outCount) {
+                val pos = i.toDouble() * rate / outRate
+                val i0 = pos.toInt().coerceAtMost(n - 1)
+                val i1 = (i0 + 1).coerceAtMost(n - 1)
+                val v = mono[i0] + (mono[i1] - mono[i0]) * (pos - i0).toFloat()
+                bytes.putShort((v.coerceIn(-1f, 1f) * 32767).toInt().toShort())
+            }
+            val dir = File(context.cacheDir, "pcm").apply { mkdirs() }
+            dir.listFiles()?.forEach { it.delete() } // chỉ giữ file của lần gọi này
+            val file = File(dir, "pcm-${++pcmCounter}.raw")
+            file.writeBytes(bytes.array())
+            return file
+        } finally {
+            try { codec?.stop() } catch (_: Exception) {}
+            try { codec?.release() } catch (_: Exception) {}
+            extractor.release()
         }
     }
 

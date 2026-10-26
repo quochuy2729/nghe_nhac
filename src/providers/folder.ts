@@ -82,6 +82,7 @@ async function readTags(file: File) {
       genre: normalizeGenres(c.genre),
       year: c.year,
       bpm: c.bpm,
+      replayGainDb: c.replaygain_track_gain?.dB,
       durationSec: meta.format.duration,
       artworkUrl: pic ? await pictureToDataUrl(pic.data, pic.format) : undefined,
     };
@@ -170,6 +171,7 @@ export async function importFiles(files: File[], onProgress?: (done: number, tot
         ...(tags.genre?.length ? { genre: tags.genre } : {}),
         ...(tags.year ? { year: tags.year } : {}),
         ...(tags.bpm ? { bpm: Math.round(tags.bpm) } : {}),
+        ...(typeof tags.replayGainDb === 'number' && Number.isFinite(tags.replayGainDb) ? { replayGainDb: tags.replayGainDb } : {}),
         durationSec: Math.round(tags.durationSec || (await probeDuration(file))),
         ...(tags.artworkUrl ? { artworkUrl: tags.artworkUrl } : {}),
         downloadable: true,

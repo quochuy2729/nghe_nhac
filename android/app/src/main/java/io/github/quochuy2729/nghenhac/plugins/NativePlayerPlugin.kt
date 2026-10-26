@@ -2,11 +2,13 @@ package io.github.quochuy2729.nghenhac.plugins
 
 import android.content.ComponentName
 import android.net.Uri
+import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import androidx.core.content.ContextCompat
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionCommand
@@ -90,6 +92,8 @@ class NativePlayerPlugin : Plugin() {
             .setAlbumTitle(o.optString("album").ifEmpty { null })
             .setDurationMs(o.optLong("durationMs", 0L))
         o.optString("artworkUri").takeIf { it.isNotEmpty() }?.let { meta.setArtworkUri(Uri.parse(it)) }
+        // Gain chuẩn hóa âm lượng (dB) đi kèm bài để native áp ngay lúc chuyển bài (kể cả khi tắt màn hình).
+        meta.setExtras(Bundle().apply { putDouble("gainDb", o.optDouble("gainDb", 0.0)) })
         return MediaItem.Builder()
             .setMediaId(o.getString("id"))
             .setUri(uri)
@@ -197,6 +201,57 @@ class NativePlayerPlugin : Plugin() {
     fun setUiVisible(call: PluginCall) {
         uiVisible = call.getBoolean("visible", true) ?: true
         call.resolve()
+    }
+
+    /** Tốc độ 0.5–2×; `preservePitch` = giữ cao độ (pitch = 1), không thì cao độ đổi theo tốc độ. */
+    @PluginMethod
+    fun setSpeed(call: PluginCall) {
+        val speed = (call.getFloat("speed", 1f) ?: 1f).coerceIn(0.5f, 2f)
+        val preserve = call.getBoolean("preservePitch", true) ?: true
+        withController(call) { c ->
+            c.playbackParameters = PlaybackParameters(speed, if (preserve) 1f else speed)
+            call.resolve()
+        }
+    }
+
+    private fun custom(call: PluginCall, action: String, fill: Bundle.() -> Unit) = withController(call) { c ->
+        c.sendCustomCommand(SessionCommand(action, Bundle.EMPTY), Bundle().apply(fill))
+        call.resolve()
+    }
+
+    /** EQ 5 band (dB) — service ghép với band thật của thiết bị. */
+    @PluginMethod
+    fun setEq(call: PluginCall) {
+        val arr = call.getArray("bands")
+        val bands = DoubleArray(arr?.length() ?: 0) { arr!!.getDouble(it) }
+        val enabled = call.getBoolean("enabled", false) ?: false
+        custom(call, PlaybackService.CMD_SET_EQ) {
+            putDoubleArray("bands", bands)
+            putBoolean("enabled", enabled)
+        }
+    }
+
+    @PluginMethod
+    fun setNormalize(call: PluginCall) {
+        val enabled = call.getBoolean("enabled", false) ?: false
+        custom(call, PlaybackService.CMD_SET_NORMALIZE) { putBoolean("enabled", enabled) }
+    }
+
+    @PluginMethod
+    fun setCrossfade(call: PluginCall) {
+        val sec = call.getDouble("sec", 0.0) ?: 0.0
+        custom(call, PlaybackService.CMD_SET_CROSSFADE) { putLong("ms", (sec * 1000).toLong()) }
+    }
+
+    /** `endAt` = mốc tuyệt đối (epoch ms, 0 = tắt); `endOfTrack` = dừng khi hết bài đang phát. */
+    @PluginMethod
+    fun setSleepTimer(call: PluginCall) {
+        val endAt = (call.getDouble("endAt", 0.0) ?: 0.0).toLong()
+        val endOfTrack = call.getBoolean("endOfTrack", false) ?: false
+        custom(call, PlaybackService.CMD_SET_SLEEP) {
+            putLong("endAt", endAt)
+            putBoolean("endOfTrack", endOfTrack)
+        }
     }
 
     @PluginMethod

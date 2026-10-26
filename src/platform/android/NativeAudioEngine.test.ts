@@ -28,6 +28,11 @@ class FakePlayer implements NativePlayerPlugin {
   }
   async setUiVisible(o: { visible: boolean }) { this.rec('setUiVisible', o); }
   async setLiked(o: { liked: boolean }) { this.rec('setLiked', o); }
+  async setSpeed(o: { speed: number; preservePitch: boolean }) { this.rec('setSpeed', o); }
+  async setEq(o: { bands: number[]; enabled: boolean }) { this.rec('setEq', o); }
+  async setNormalize(o: { enabled: boolean }) { this.rec('setNormalize', o); }
+  async setCrossfade(o: { sec: number }) { this.rec('setCrossfade', o); }
+  async setSleepTimer(o: { endAt: number; endOfTrack: boolean }) { this.rec('setSleepTimer', o); }
   async addListener<K extends keyof NativeEvents>(event: K, cb: (e: NativeEvents[K]) => void) {
     this.handlers[event] = cb as never;
     return { remove: async () => undefined };
@@ -160,6 +165,31 @@ describe('NativeAudioEngine', () => {
     expect(plugin.calls.map(([n]) => n)).toEqual(['play', 'pause', 'seek', 'skipTo', 'setLiked']);
     expect(plugin.last('seek')).toEqual({ sec: 42 });
     expect(engine.managesQueue).toBe(true);
+  });
+});
+
+describe('G6: hiệu ứng và hẹn giờ', () => {
+  it('chuyển tốc độ, EQ, chuẩn hóa, crossfade xuống native', async () => {
+    await engine.setSpeed(1.25, false);
+    await engine.setEq([6, 4, 1, -1, -1], true);
+    await engine.setNormalize(true);
+    await engine.setCrossfade(6);
+    expect(plugin.last('setSpeed')).toEqual({ speed: 1.25, preservePitch: false });
+    expect(plugin.last('setEq')).toEqual({ bands: [6, 4, 1, -1, -1], enabled: true });
+    expect(plugin.last('setNormalize')).toEqual({ enabled: true });
+    expect(plugin.last('setCrossfade')).toEqual({ sec: 6 });
+  });
+
+  it('hẹn giờ chạy native: endAt null → 0; sự kiện sleep chuyển về JS', async () => {
+    await engine.setSleepTimer({ endAt: null, endOfTrack: true });
+    expect(plugin.last('setSleepTimer')).toEqual({ endAt: 0, endOfTrack: true });
+    plugin.fire('sleep', { active: false });
+    expect(events).toContainEqual({ type: 'sleep', active: false });
+  });
+
+  it('gain chuẩn hóa đi kèm từng bài, bỏ qua khi 0', () => {
+    expect(toNativeItem({ track: fakeTrack(1), url: 'content://x', gainDb: -3.5 }).gainDb).toBe(-3.5);
+    expect(toNativeItem({ track: fakeTrack(1), url: 'content://x', gainDb: 0 })).not.toHaveProperty('gainDb');
   });
 });
 

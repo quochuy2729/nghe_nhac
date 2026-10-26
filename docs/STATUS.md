@@ -9,7 +9,7 @@ Player đầy đủ + Media Session, lyrics (LRC/LRCLIB), nạp nhạc vào IDB 
 - [x] G3 Phát nhạc native (Media3)
 - [x] G4 Đồng bộ v2
 - [x] G5 Phân tích âm thanh + gợi ý thông minh
-- [ ] G6 Trải nghiệm nghe
+- [x] G6 Trải nghiệm nghe
 - [ ] G7 Quản lý thư viện
 - [ ] G8 Thống kê / Wrapped
 - [ ] G9 Hoàn thiện + QA
@@ -39,7 +39,13 @@ Player đầy đủ + Media Session, lyrics (LRC/LRCLIB), nạp nhạc vào IDB 
 - `recommend/`: `audioSim`, `contentSim`, `intent`, `mood`, `smartShuffle`, `mixes`; engine nhận `Signals.features` (giữ nguyên chữ ký hàm public).
 - UI: nút trộn 3 trạng thái (✨ trong hàng đợi), kệ Trang chủ mới (Đang muốn nghe + chip, Mix theo giờ/mood, On Repeat, Lâu rồi chưa nghe, Khám phá), nút Radio, Cài đặt › Phân tích âm thanh.
 
+## G6 (đã xong, chờ workflow xanh)
+- `NativeDecoder` (MediaExtractor + MediaCodec → PCM file trong cache) thay WebDecoder trên Android. Service Media3 thêm EQ (Equalizer/LoudnessEnhancer), gain theo bài, crossfade 2 ExoPlayer, hẹn giờ native; plugin thêm `setSpeed/setEq/setNormalize/setCrossfade/setSleepTimer`.
+- `features/listening/`: `logic` (thuần: hẹn giờ, gain, nhớ vị trí, EQ, kéo/vuốt), `settings` (đồng bộ `user_settings`), `sleep`, `resume`, `PlaybackOptionsSheet`; Cài đặt › Trải nghiệm nghe (ẩn trên iPhone). Hàng đợi: kéo ≡ để sắp xếp, vuốt trái để xóa.
+
 ## Câu hỏi mở
+- G6: crossfade dùng player phụ phát nốt bài cũ từ vị trí hiện tại nên có thể lệch vài chục ms; lượt nghe của bài cũ được ghi sớm bằng thời lượng crossfade. Chưa nghe thử trên máy thật.
+- G6: iPhone không giảm dần âm lượng khi hẹn giờ (`audio.volume` chỉ đọc); gain chuẩn hóa chỉ có trên Android. ReplayGain chỉ đọc được từ file nạp qua web (Android dùng loudness đã phân tích).
 - G5: tâm trạng/`energy`/`brightness` là ước lượng bằng luật + hằng số cố định (không học máy). BPM chỉ tin cậy với nhạc có nhịp rõ; `bpmConf` thấp thì bỏ qua.
 - G5: Android chưa có `NativeDecoder` (G6): phân tích đọc cả file qua WebView, file > 60 MB bị bỏ qua. Trộn thông minh không giữ được khi hết vòng lặp ở `repeat: all` (vòng mới xáo thường).
 - G5: `fetchRemoteFeatures` thay bằng `syncNow()` + nạp lại IndexedDB (G4 đã có).
@@ -55,6 +61,9 @@ Player đầy đủ + Media Session, lyrics (LRC/LRCLIB), nạp nhạc vào IDB 
 - `platform.caps` ở web đang để `false` hết cho tới khi tính năng có thật (speed/sleepTimer ở G6, analyze ở G5).
 
 ## QA thủ công cần chủ repo làm
+- [ ] G6: so âm lượng hai bài master to/nhỏ khi bật chuẩn hóa (cần bài đã phân tích); crossfade 6 giây không bị click/khoảng lặng; cùng album liền nhau không crossfade.
+- [ ] G6: hẹn giờ 5 phút khi tắt màn hình dừng đúng giờ (Poco), giảm dần 10 giây cuối; "Hết bài này"; trên iPhone nhạc dừng đúng giờ.
+- [ ] G6: EQ Bass/Vocal nghe khác rõ; tốc độ 1.5× giữ/không giữ cao độ; mở lại file podcast > 10 phút phát tiếp từ chỗ cũ.
 - [ ] G3: khóa màn hình nghe 30 phút liên tục qua nhiều bài (chuyển bài khi tắt màn hình, notification có ảnh bìa).
 - [ ] G3: nút tai nghe Bluetooth (play/pause/next/prev); rút tai nghe thì dừng; có cuộc gọi đến thì dừng rồi phát tiếp.
 - [ ] G3: lịch sử nghe lúc khóa màn hình hiện đủ khi mở app; nút ♥ trên notification đổi trạng thái thích.

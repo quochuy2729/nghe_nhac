@@ -1,6 +1,7 @@
 /** Nối syncService với app: auth, foreground, mạng, đồng hồ 10 phút. Gọi một lần lúc khởi động. */
 import { useAuth } from '@/features/auth/store';
 import { library, replayLibrary } from '@/features/library/store';
+import { hydrateListening } from '@/features/listening/settings';
 import { loadHistory, useHistory } from '@/features/recommend/history';
 import { supabase } from '@/lib/supabase';
 import { clearTable } from './outbox';
@@ -13,6 +14,7 @@ function currentDeps(): SyncDeps | null {
     client: createSupabaseSyncClient(supabase),
     replayLibrary,
     onEventsPulled: loadHistory,
+    onSettingsPulled: hydrateListening,
   };
 }
 

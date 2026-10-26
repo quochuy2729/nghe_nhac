@@ -43,6 +43,8 @@ export interface MusicLibraryPlugin {
   readTags(opts: { uris: string[] }): Promise<{ tags: TagResult[] }>;
   artwork(opts: { uri: string }): Promise<{ path: string | null }>;
   readText(opts: { uri: string }): Promise<{ text: string | null }>;
+  /** PCM mono int16 @ sampleRate của đoạn [startSec, startSec+durSec), ghi vào file trong cache. */
+  decodeSegment(opts: { uri: string; startSec: number; durSec: number; sampleRate: number }): Promise<{ path: string; samples: number }>;
   addListener(
     event: 'scanBatch',
     cb: (e: { scanId: string; items: ScanItem[] }) => void,

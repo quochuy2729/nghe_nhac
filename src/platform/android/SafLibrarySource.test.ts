@@ -39,6 +39,9 @@ class FakePlugin implements MusicLibraryPlugin {
   async artwork() {
     return { path: null };
   }
+  async decodeSegment() {
+    return { path: '', samples: 0 };
+  }
   async readText({ uri }: { uri: string }) {
     this.textCalls.push(uri);
     return { text: this.texts.get(uri) ?? null };

@@ -12,6 +12,10 @@ import { smartShuffle } from '@/features/recommend/smartShuffle';
 import { useRecommendSettings } from '@/features/recommend/settings';
 import { library, useLibrary } from '@/features/library/store';
 import { itemsAfter, needsTopUp, upcomingItems, WINDOW_AHEAD } from './window';
+import { useFeatures } from '@/features/analyze/featuresStore';
+import { trackGainDb, shouldRemember } from '@/features/listening/logic';
+import { forgetPosition, getResumeSec, loadResume, rememberPosition } from '@/features/listening/resume';
+import { sleep, sleepShouldStop } from '@/features/listening/sleep';
 
 const engine = platform.engine;
 /** Engine native tự chuyển bài trong "cửa sổ" và tự ghi lượt nghe → JS không đo thời gian nghe nữa. */
@@ -92,6 +96,13 @@ interface Resolved {
   uid: string;
   track: Track;
   url: string;
+  /** chuẩn hóa âm lượng (dB); native chỉ áp khi người dùng bật */
+  gainDb?: number;
+}
+
+function gainFor(track: Track): number | undefined {
+  if (!platform.caps.normalize) return undefined;
+  return trackGainDb({ replayGainDb: track.replayGainDb, loudnessDb: useFeatures.getState().map.get(track.id)?.loudnessDb });
 }
 
 /** Bài không có trên máy (mất quyền, đã xóa) thì bỏ khỏi cửa sổ thay vì làm hỏng cả lô. */
@@ -99,7 +110,7 @@ async function resolveItems(items: Q.QueueItem[]): Promise<Resolved[]> {
   const out: Resolved[] = [];
   for (const it of items) {
     try {
-      out.push({ uid: it.uid, track: it.track, url: await resolvePlayableUrl(it.track) });
+      out.push({ uid: it.uid, track: it.track, url: await resolvePlayableUrl(it.track), gainDb: gainFor(it.track) });
     } catch {
       // bỏ qua
     }
@@ -134,8 +145,10 @@ function current(): Q.QueueItem | undefined {
 async function loadCurrent(autoplay: boolean, startAt = 0): Promise<void> {
   const item = current();
   const token = ++loadToken;
+  // Bài dài (podcast/mix): mở lại thì phát tiếp từ chỗ cũ.
+  if (item && startAt === 0) startAt = getResumeSec(item.track.id, item.track.durationSec);
   // Bài đã nằm sẵn trong cửa sổ native → nhảy thẳng, không dựng lại playlist (không bị ngắt tiếng).
-  const jumpIdx = item && managed && engineReady && startAt === 0 ? windowUids.indexOf(item.uid) : -1;
+  const jumpIdx = item && managed && engineReady ? windowUids.indexOf(item.uid) : -1;
   engineReady = false;
   tracker.end();
   if (item) tracker.begin(item.track.id, item.track.durationSec);
@@ -157,14 +170,16 @@ async function loadCurrent(autoplay: boolean, startAt = 0): Promise<void> {
     if (jumpIdx >= 0) {
       windowIdx = jumpIdx;
       await engine.skipTo(jumpIdx);
+      if (startAt > 0) await engine.seek(startAt);
     } else {
       const first = await resolvePlayableUrl(item.track);
+      const firstGain = gainFor(item.track);
       const rest = managed ? await resolveItems(upcomingItems(useQueueStore.getState().queue)) : [];
       if (token !== loadToken) return;
       // Cập nhật bản đồ TRƯỚC khi gọi native: sự kiện trackChanged có thể tới ngay sau setWindow.
       windowUids = [item.uid, ...rest.map((r) => r.uid)];
       windowIdx = 0;
-      await engine.setWindow([{ track: item.track, url: first }, ...rest], 0, startAt);
+      await engine.setWindow([{ track: item.track, url: first, gainDb: firstGain }, ...rest], 0, startAt);
     }
     if (token !== loadToken) return;
     engineReady = true;
@@ -439,6 +454,7 @@ let initialized = false;
 export function initPlayer(): void {
   if (initialized) return;
   initialized = true;
+  void loadResume();
 
   engine.on((e) => {
     switch (e.type) {
@@ -448,19 +464,42 @@ export function initPlayer(): void {
           offlineSkips = 0;
           usePlayback.setState({ error: null });
         }
-        if (!e.playing) savePosition();
+        if (!e.playing) {
+          savePosition();
+          const cur = current();
+          if (cur) rememberPosition(cur.track.id, usePlayback.getState().currentTime, usePlayback.getState().duration || cur.track.durationSec, Date.now(), 0);
+        }
         break;
       }
       case 'position': {
         usePlayback.setState({ currentTime: e.sec });
         if (e.durationSec > 0) usePlayback.setState({ duration: e.durationSec });
         tracker.tick(e.sec);
+        {
+          const cur = current();
+          if (cur) {
+            const dur = e.durationSec || cur.track.durationSec;
+            if (shouldRemember(dur)) rememberPosition(cur.track.id, e.sec, dur);
+            if (sleepShouldStop({ trackId: cur.track.id })) player.pause();
+          }
+        }
         if (e.durationSec > 0) tracker.setDuration(e.durationSec);
         break;
       }
-      case 'ended':
+      case 'ended': {
         tracker.end();
+        const cur = current();
+        if (cur) forgetPosition(cur.track.id);
+        // Hẹn giờ "hết bài này" (web): dừng ở đây, không sang bài kế.
+        if (sleepShouldStop({ trackId: cur?.track.id ?? null, ended: true })) {
+          usePlayback.setState({ isPlaying: false });
+          break;
+        }
         applyStep(nextStep(true));
+        break;
+      }
+      case 'sleep':
+        if (!e.active) sleep.nativeFinished();
         break;
       case 'error':
         usePlayback.setState({ isPlaying: false, isLoading: false, error: e.message });

@@ -12,6 +12,8 @@ export interface NativeItem {
   /** file:// hoặc content:// của ảnh bìa */
   artworkUri?: string;
   durationMs: number;
+  /** dB, áp native khi bài bắt đầu nếu chuẩn hóa đang bật */
+  gainDb?: number;
 }
 
 /** Lượt nghe native ghi lại (cả lúc app ở nền). */
@@ -38,6 +40,7 @@ export interface NativeEvents {
   ended: Record<string, never>;
   error: { trackId: string; message: string };
   remote: { action: 'toggleLike'; trackId: string };
+  sleep: { active: boolean };
 }
 
 export interface NativePlayerPlugin {
@@ -52,6 +55,11 @@ export interface NativePlayerPlugin {
   drainEvents(): Promise<{ events: NativePlayEvent[] }>;
   setUiVisible(o: { visible: boolean }): Promise<void>;
   setLiked(o: { liked: boolean }): Promise<void>;
+  setSpeed(o: { speed: number; preservePitch: boolean }): Promise<void>;
+  setEq(o: { bands: number[]; enabled: boolean }): Promise<void>;
+  setNormalize(o: { enabled: boolean }): Promise<void>;
+  setCrossfade(o: { sec: number }): Promise<void>;
+  setSleepTimer(o: { endAt: number; endOfTrack: boolean }): Promise<void>;
   addListener<K extends keyof NativeEvents>(event: K, cb: (e: NativeEvents[K]) => void): Promise<PluginListenerHandle>;
 }
 
