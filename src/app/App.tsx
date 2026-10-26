@@ -7,6 +7,7 @@ import { PlaylistPicker } from '@/features/library/PlaylistPicker';
 import { initLibrary } from '@/features/library/store';
 import { TrackMenu } from '@/features/library/TrackMenu';
 import { initPlayer } from '@/features/player/store';
+import { loadFolder } from '@/providers/folder';
 import { DownloadsPage } from '@/pages/DownloadsPage';
 import { HomePage } from '@/pages/HomePage';
 import { LibraryPage } from '@/pages/LibraryPage';
@@ -20,13 +21,14 @@ import { CloseOverlaysOnNavigate } from './CloseOverlaysOnNavigate';
 import { ErrorBoundary } from './ErrorBoundary';
 import { Layout } from './Layout';
 
-// HashRouter: GitHub Pages không hỗ trợ rewrite SPA, hash route chạy ổn cả khi cài PWA.
+// HashRouter: không cần cấu hình rewrite phía server, chạy ổn cả khi cài PWA.
 export function App() {
   useEffect(() => {
     initPlayer();
     initAuth();
     initLibrary();
     initDownloads();
+    void loadFolder();
   }, []);
 
   return (

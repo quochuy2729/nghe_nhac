@@ -1,15 +1,31 @@
-# Prompt dán vào Claude Code (cloud) sau khi gắn repo
+# Cách giao việc cho Claude Code (v2)
 
-Đọc kỹ CLAUDE.md và analysis.md trong repo này. Xây dựng app nghe nhạc PWA "Nghe Nhạc" theo đúng stack, ràng buộc và kế hoạch P0 → P6 trong analysis.md.
+## Chuẩn bị (một lần)
+1. Commit + push các file: `CLAUDE.md`, `PROMPT.md`, `docs/` (`.claude/settings.json` sẽ được tạo ở G1).
+2. Trên GitHub: Settings → Secrets → thêm `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (đã có), và 4 secret keystore (README sẽ hướng dẫn sau khi xong G2).
 
-Yêu cầu:
-1. Làm tuần tự từng phase. Hết mỗi phase: `npm run lint`, `npm run test`, `npm run build` phải pass, commit riêng, tick checklist trong analysis.md.
-2. Player phải có: play/pause, next, previous, shuffle, repeat, seek, hàng đợi, mini-player và full player, điều khiển trên lock screen (Media Session).
-3. Lời bài hát đồng bộ từ LRCLIB: dòng đang hát tô sáng, tự cuộn theo nhạc, chạm dòng để tua.
-4. Tài khoản Supabase: lưu bài yêu thích và playlist, đồng bộ giữa Android và iPhone. Viết migration SQL + RLS trong supabase/migrations.
-5. Tải về offline cho bài được phép tải (Jamendo/Audius) và file nhạc của tôi (local), phát được khi mất mạng.
-6. Giao diện tối, mobile-first cho iPhone 12 Pro và Poco X8 Pro, cảm giác giống Spotify nhưng không dùng logo/tên/thương hiệu Spotify.
-7. Thiết lập GitHub Actions deploy lên GitHub Pages; viết README hướng dẫn: tạo Supabase project, lấy Jamendo client_id, điền secrets, cài PWA lên màn hình chính trên iPhone (Safari → Chia sẻ → Thêm vào MH chính) và Android (Chrome → Cài đặt ứng dụng).
-8. Chưa có key thì dùng mock provider để app vẫn chạy được, ghi vào "Câu hỏi mở".
+## Thứ tự
+G1 → G2 → G3 → G4 → G5 → G6 → G7 → G8 → G9.
+G6, G7, G8 không phụ thuộc nhau, đổi thứ tự được. Merge PR của phase trước rồi mới mở phiên mới.
 
-Khi xong, tạo Pull Request tóm tắt những gì đã làm và những gì cần tôi cấu hình.
+## Prompt cho mỗi phase (thay `G1` và tên file)
+```
+Phase G1. Đọc CLAUDE.md, rồi docs/phases/G1-platform-layer.md. Làm đúng phạm vi file đó, không làm thêm.
+Nhánh phase/g1. Xong thì lint + test + build pass, tick STATUS, mở PR tóm tắt ≤ 10 dòng.
+Không hỏi lại; vướng thì chọn phương án an toàn và ghi vào Câu hỏi mở.
+```
+
+## Prompt sửa lỗi (sau khi thử trên điện thoại)
+```
+Bug (Poco|iPhone): <1 câu mô tả>. Các bước tái hiện: <1-2-3>. Mong đợi: <...>. Log: <tối đa 20 dòng>.
+Chỉ đọc file liên quan, sửa và thêm test tái hiện lỗi. Nhánh fix/<tên-ngắn>.
+```
+
+## Mẹo tiết kiệm token
+- **Mỗi phase một phiên mới** (hoặc `/clear`). Đừng làm nhiều phase trong một phiên vì ngữ cảnh cũ cứ bị gửi lại mỗi lượt.
+- CLAUDE.md được nạp vào **mọi lượt** nên đã giữ thật ngắn. Chi tiết nằm trong `docs/phases/`; Claude chỉ đọc file của phase đang làm.
+- Contract (interface, schema) đã viết sẵn trong ARCHITECTURE.md, nên Claude không phải tự dò rồi tự thiết kế lại.
+- `.claude/settings.json` chặn đọc `dist/`, `package-lock.json`, tài liệu cũ.
+- Chọn model: **Sonnet** cho G1, G4, G6, G7, G8, G9; **Opus** cho G2, G3, G5 (Kotlin/Media3 và thuật toán).
+- Báo lỗi bằng prompt mẫu ở trên: mô tả ngắn + log ngắn, đừng dán cả file.
+- Không yêu cầu Claude "kiểm tra giao diện" bằng trình duyệt. Bạn tự thử trên máy rồi điền `docs/QA.md`.

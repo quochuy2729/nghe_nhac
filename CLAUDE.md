@@ -1,60 +1,40 @@
-# CLAUDE.md — Nghe Nhạc
+# CLAUDE.md — Nghe Nhạc (v2)
 
-App nghe nhạc cá nhân kiểu Spotify/Spotube, chạy trên **Poco X8 Pro (Android)** và **iPhone 12 Pro**.
-Đọc `analysis.md` trước khi code — đó là bản phân tích yêu cầu và kiến trúc. File này là luật làm việc.
+App nghe nhạc cá nhân, **chỉ phát file nhạc có sẵn trong điện thoại**. Không tìm nhạc online, không upload nhạc lên server.
+- **Poco X8 Pro**: APK Android (Capacitor), đọc thẳng thư mục đã chọn, phát bằng Media3 native.
+- **iPhone 12 Pro**: PWA (GitHub Pages), nạp nhạc bằng `<input webkitdirectory>` và sao chép vào IndexedDB.
+- Hai bản dùng chung một codebase React. Khác biệt giữa hai nền tảng nằm hết trong `src/platform/`.
 
-## Mục tiêu
-- Nghe nhạc stream, tải về nghe offline.
-- Tài khoản: thư viện bài đã lưu + playlist đồng bộ giữa 2 điện thoại.
-- Player: play/pause, next, previous, shuffle, repeat, seek, hàng đợi.
-- Lời bài hát đồng bộ (synced lyrics): dòng đang hát được tô sáng và tự cuộn theo nhạc.
+## Đọc gì (để tiết kiệm token)
+1. Đọc file này.
+2. Đọc **đúng một** file `docs/phases/<PHASE>.md` mà prompt yêu cầu.
+3. Chỉ mở `docs/ARCHITECTURE.md` ở mục được file phase trỏ tới (vd "§3 Data model"), không đọc cả file.
+4. KHÔNG đọc: `dist/`, `node_modules/`, `package-lock.json`, `docs/history/`. Chỉ đọc code liên quan tới phase; tìm bằng grep trước rồi mới mở file.
+5. Không viết lại hay tóm tắt docs. Hết phase chỉ cập nhật `docs/STATUS.md`, tối đa 10 dòng.
 
 ## Stack (không đổi nếu chưa hỏi)
-- **PWA**: React 18 + TypeScript + Vite, `vite-plugin-pwa` (Workbox).
-- **State**: Zustand. **Style**: Tailwind CSS. Dark theme mặc định.
-- **Backend**: Supabase (Auth email/password, Postgres + RLS, Storage cho file nhạc người dùng tự upload).
-- **Offline**: IndexedDB (qua `idb`) lưu blob audio + metadata; gọi `navigator.storage.persist()`.
-- **Nguồn nhạc** (provider pattern, xem analysis.md §3):
-  - `jamendo` — Jamendo API (nhạc Creative Commons, cho phép tải). Cần `VITE_JAMENDO_CLIENT_ID`.
-  - `audius` — Audius public API (không cần key).
-  - `local` — file mp3/m4a/flac người dùng tự chọn từ máy hoặc upload lên Supabase Storage.
-- **Lyrics**: LRCLIB (`https://lrclib.net/api/get` và `/api/search`), parse định dạng LRC. Lấy lúc runtime, **không** commit lời bài hát vào repo, không cache lời lên Supabase.
-- **Lock screen / tai nghe**: Media Session API.
-- **Deploy**: GitHub Pages qua GitHub Actions (base path = tên repo).
+- React 18 + TS + Vite + Tailwind + Zustand + `idb` + `vite-plugin-pwa`. Dark theme, mobile-first.
+- Android: Capacitor 7 + plugin Kotlin tự viết trong `android/app/src/main/java/.../plugins/` (MusicLibrary, NativePlayer), dùng AndroidX Media3 (ExoPlayer + MediaSessionService).
+- Phân tích âm thanh: Meyda (MIT) + BPM tự viết. Không dùng Essentia.js (giấy phép AGPL, file WASM nặng).
+- Supabase (Auth email+password, Postgres, RLS): đồng bộ like, playlist, lịch sử nghe, đặc trưng âm thanh, tag sửa tay, playlist thông minh. **Không bao giờ lưu file nhạc.**
+- Id bài = `folder:<hash53(NFC(tên file) | dung lượng)>` (`src/lib/id.ts`), giống nhau trên cả hai máy. KHÔNG đổi công thức.
 
 ## Ràng buộc bắt buộc
-- KHÔNG tích hợp tải/rip từ YouTube, Spotify hay nguồn vi phạm ToS/bản quyền. Chỉ dùng provider ở trên.
-- Nút "Tải về" chỉ hiện với track mà provider cho phép tải (`track.downloadable === true`) hoặc file của chính người dùng.
-- Không hardcode secret. Mọi key đi qua `.env` (có `.env.example`), Supabase chỉ dùng anon key + RLS.
-- Dữ liệu test/fixture không chứa lời bài hát thật — dùng LRC giả tự viết.
-- Mobile-first: thiết kế cho màn ~390px, vùng chạm ≥ 44px, tôn trọng `safe-area-inset` của iPhone.
-- Chỉ dùng **một** phần tử `<audio>` toàn cục (iOS chặn autoplay/background nếu tạo nhiều).
-
-## Cấu trúc thư mục
-```
-src/
-  app/            # router, layout, providers
-  features/
-    player/       # audio engine, queue, shuffle, Media Session
-    lyrics/       # LRCLIB client, LRC parser, LyricsView
-    library/      # thư viện, playlist, liked
-    search/
-    downloads/    # IndexedDB, quản lý offline
-    auth/
-  providers/      # jamendo.ts, audius.ts, local.ts + types.ts (interface MusicProvider)
-  lib/            # supabase.ts, db.ts (idb), utils
-supabase/migrations/   # SQL schema + RLS
-```
+- Không tích hợp tải hay rip từ YouTube/Spotify. Không tìm nhạc online. LRCLIB chỉ dùng để lấy lời bài hát.
+- Không hardcode secret. Mọi key đi qua `.env` / GitHub Secrets. Trong app chỉ dùng anon key.
+- Fixture test không chứa lời bài hát thật hay file nhạc thật (tự sinh sóng sin hoặc nhiễu bằng code).
+- Web: chỉ có **một** `<audio>` toàn cục. iOS: không đưa `<audio>` qua Web Audio graph (sẽ mất phát nền).
+- Logic thuần (queue, shuffle, engine gợi ý, trích đặc trưng, rule playlist, thống kê, sync merge) tách khỏi UI, nhận `rng`/`now` làm tham số và có unit test.
+- UI và feature chỉ gọi interface trong `src/platform/types.ts`, không import Capacitor trực tiếp.
+- Tính năng nền tảng không hỗ trợ thì **ẩn đi** (dựa vào `platform.caps`), không hiện nút bấm không có tác dụng.
+- Vùng chạm ≥ 44px, tôn trọng `safe-area-inset`, không tràn ngang ở 390px và 412px.
 
 ## Lệnh
-- `npm run dev` — chạy local
-- `npm run build` — build production (phải pass trước khi commit)
-- `npm run test` — Vitest
-- `npm run lint` — ESLint + `tsc --noEmit`
+- `npm run lint` · `npm run test` · `npm run build` (bản web) — cả ba phải pass trước khi commit.
+- `npm run build:android` → `npx cap sync android`. Sandbox không build được Gradle thì push lên nhánh và đọc kết quả workflow `android.yml` bằng `gh run view --log-failed`.
 
 ## Cách làm việc
-- Làm theo các phase trong `analysis.md` §6. Xong mỗi phase: build + test pass, commit, tick checklist trong analysis.md.
-- Viết test cho phần logic thuần: LRC parser, shuffle (Fisher–Yates giữ bài hiện tại), queue next/prev, chọn dòng lyric theo thời gian.
-- Commit message tiếng Anh, ngắn, dạng `feat(player): ...`.
-- Nếu gặp quyết định ảnh hưởng kiến trúc hoặc cần key/tài khoản, ghi vào mục "Câu hỏi mở" cuối analysis.md và chọn phương án an toàn để tiếp tục.
-- Trả lời người dùng ngắn gọn, bằng tiếng Việt.
+- Một phase = một nhánh `phase/<id>` = một PR. Commit tiếng Anh dạng `feat(player): ...`.
+- Gặp quyết định kiến trúc chưa có trong spec: chọn phương án an toàn, ghi một dòng vào `docs/STATUS.md › Câu hỏi mở`, rồi làm tiếp. Không dừng lại để hỏi.
+- Không chạy dev server hay chụp màn hình để tự kiểm. Kiểm bằng test + build; phần kiểm trên điện thoại thật ghi vào checklist QA cho chủ repo.
+- Trả lời chủ repo ngắn gọn, bằng tiếng Việt.

@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import type { Track } from '@/providers/types';
-import { setLocalCloudLister, setLocalRemoteResolver } from '@/providers/local';
 import { supabase } from '@/lib/supabase';
 import { uuid } from '@/lib/id';
 import { toast } from '@/components/toastStore';
@@ -27,7 +26,6 @@ export const useLibrary = create<LibraryState>()(() => ({
 
 type CloudBackend = ReturnType<typeof createCloudBackend>;
 let backend: LibraryBackend = guestBackend;
-let cloud: CloudBackend | null = null;
 
 /** Cập nhật lạc quan: đổi UI ngay, lỗi thì hoàn tác và báo. */
 async function mutate(apply: (s: LibrarySnapshot) => LibrarySnapshot, remote: () => Promise<void>, failMsg: string) {
@@ -124,21 +122,6 @@ export const library = {
     tracks.splice(to, 0, m);
     return quiet(mutate(mapPlaylist(id, (p) => ({ ...p, tracks })), () => backend.setPlaylistTracks(id, tracks), 'Không đổi thứ tự được'));
   },
-
-  canUpload(): boolean {
-    return !!cloud;
-  },
-
-  /** Upload file local lên đám mây để máy còn lại phát được. */
-  async uploadLocal(track: Track): Promise<void> {
-    if (!cloud) throw new Error('Hãy đăng nhập để đồng bộ file.');
-    const path = await cloud.uploadLocalFile(track);
-    const withPath = (t: Track) => (t.id === track.id ? { ...t, storagePath: path } : t);
-    useLibrary.setState((s) => ({
-      liked: s.liked.map(withPath),
-      playlists: s.playlists.map((p) => ({ ...p, tracks: p.tracks.map(withPath) })),
-    }));
-  },
 };
 
 /** Đẩy dữ liệu chế độ khách lên tài khoản vừa đăng nhập (một lần). */
@@ -164,10 +147,7 @@ export function initLibrary(): void {
   const apply = async (userId: string | null) => {
     if (userId && supabase) {
       const c = createCloudBackend(supabase, userId);
-      cloud = c;
       backend = c;
-      setLocalRemoteResolver((t) => (t.storagePath ? c.signedUrl(t.storagePath) : Promise.resolve(null)));
-      setLocalCloudLister(() => c.listMyFiles());
       useLibrary.setState({ mode: 'cloud', lastSync: 0 });
       try {
         await mergeGuestInto(c);
@@ -175,10 +155,7 @@ export function initLibrary(): void {
         toast(`Chưa chuyển được thư viện khách: ${(err as Error).message}`);
       }
     } else {
-      cloud = null;
       backend = guestBackend;
-      setLocalRemoteResolver(null);
-      setLocalCloudLister(null);
       useLibrary.setState({ mode: 'guest', lastSync: 0 });
     }
     await library.refresh();

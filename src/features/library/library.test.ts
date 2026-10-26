@@ -13,9 +13,9 @@ describe('guestBackend', () => {
     await guestBackend.like(fakeTrack(1));
     await guestBackend.like(fakeTrack(2));
     await guestBackend.like(fakeTrack(1));
-    expect(readGuest().liked.map((t) => t.id)).toEqual(['mock:1', 'mock:2']);
-    await guestBackend.unlike('mock:1');
-    expect(readGuest().liked.map((t) => t.id)).toEqual(['mock:2']);
+    expect(readGuest().liked.map((t) => t.id)).toEqual(['folder:1', 'folder:2']);
+    await guestBackend.unlike('folder:1');
+    expect(readGuest().liked.map((t) => t.id)).toEqual(['folder:2']);
   });
 
   it('playlist CRUD + bỏ streamUrl khi lưu', async () => {
@@ -27,7 +27,7 @@ describe('guestBackend', () => {
     expect(p.tracks[0].streamUrl).toBeUndefined();
     await guestBackend.setPlaylistTracks('p1', [fakeTrack(2)]);
     p = readGuest().playlists[0];
-    expect(p.tracks.map((t) => t.id)).toEqual(['mock:2']);
+    expect(p.tracks.map((t) => t.id)).toEqual(['folder:2']);
     await guestBackend.deletePlaylist('p1');
     expect(readGuest().playlists).toEqual([]);
   });
@@ -36,10 +36,10 @@ describe('guestBackend', () => {
 describe('library store (chế độ khách)', () => {
   it('toggleLike cập nhật state và lưu', async () => {
     await library.toggleLike(fakeTrack(5));
-    expect(library.isLiked('mock:5')).toBe(true);
+    expect(library.isLiked('folder:5')).toBe(true);
     expect(readGuest().liked).toHaveLength(1);
     await library.toggleLike(fakeTrack(5));
-    expect(library.isLiked('mock:5')).toBe(false);
+    expect(library.isLiked('folder:5')).toBe(false);
   });
 
   it('tạo playlist, thêm, đổi chỗ, xóa bài', async () => {
@@ -48,11 +48,11 @@ describe('library store (chế độ khách)', () => {
     await library.movePlaylistTrack(id, 2, 0);
     let p = useLibrary.getState().playlists.find((x) => x.id === id)!;
     expect(p.name).toBe('Chạy bộ');
-    expect(p.tracks.map((t) => t.id)).toEqual(['mock:3', 'mock:1', 'mock:2']);
+    expect(p.tracks.map((t) => t.id)).toEqual(['folder:3', 'folder:1', 'folder:2']);
     await library.removeFromPlaylist(id, 1);
     p = useLibrary.getState().playlists.find((x) => x.id === id)!;
-    expect(p.tracks.map((t) => t.id)).toEqual(['mock:3', 'mock:2']);
-    expect(readGuest().playlists[0].tracks.map((t) => t.id)).toEqual(['mock:3', 'mock:2']);
+    expect(p.tracks.map((t) => t.id)).toEqual(['folder:3', 'folder:2']);
+    expect(readGuest().playlists[0].tracks.map((t) => t.id)).toEqual(['folder:3', 'folder:2']);
   });
 });
 
@@ -61,6 +61,5 @@ describe('cloud mapping', () => {
     const t = fakeTrack(1, { album: 'X', artworkUrl: 'https://img' });
     expect(rowToTrack(trackToRow(t))).toEqual({ ...t });
     expect(trackToRow(fakeTrack(2, { artworkUrl: 'blob:abc' })).artwork_url).toBeNull();
-    expect(rowToTrack(trackToRow(t), 'uid/file.mp3').storagePath).toBe('uid/file.mp3');
   });
 });

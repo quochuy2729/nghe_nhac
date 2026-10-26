@@ -122,7 +122,7 @@ export const MusicIcon = make(
   </>,
   false,
 );
-export const UploadIcon = make(<path d="M12 21V9m0 0-5 5m5-5 5 5M4 3h16" />, false);
+export const SparkIcon = make(<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 16l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z" />, false);
 export const OfflineIcon = make(<path d="M2 2l20 20M8.5 16.5a5 5 0 0 1 7 0M5 13a10 10 0 0 1 5.2-2.8M19 13a10 10 0 0 0-2.3-1.7M2 8.8a15 15 0 0 1 4.2-2.7M22 8.8A15 15 0 0 0 10.7 5M12 20h.01" />, false);
 export const UserIcon = make(
   <>

@@ -40,7 +40,7 @@ describe('shuffle', () => {
     const q = createQueue(fakeTracks(10), 4, { uid: seqUid() });
     const s = setShuffle(q, true, seededRng(3));
     expect(s.index).toBe(0);
-    expect(currentItem(s)?.track.id).toBe('mock:5');
+    expect(currentItem(s)?.track.id).toBe('folder:5');
     expect(ids(s).slice().sort()).toEqual(ids(q).slice().sort());
   });
 
@@ -57,7 +57,7 @@ describe('shuffle', () => {
 
   it('createQueue với shuffle bắt đầu từ bài được chọn', () => {
     const q = createQueue(fakeTracks(6), 3, { shuffle: true, rng: seededRng(9), uid: seqUid() });
-    expect(currentItem(q)!.track.id).toBe('mock:4');
+    expect(currentItem(q)!.track.id).toBe('folder:4');
   });
 
   it('không lặp bài trước khi hết vòng (repeat all + shuffle)', () => {
@@ -90,7 +90,7 @@ describe('next / prev', () => {
     expect(step.action).toBe('play');
     s = step.state;
     s = next(s).state;
-    expect(currentItem(s)!.track.id).toBe('mock:3');
+    expect(currentItem(s)!.track.id).toBe('folder:3');
     step = next(s, { auto: true });
     expect(step.action).toBe('stop');
     expect(step.state.index).toBe(0);
@@ -100,7 +100,7 @@ describe('next / prev', () => {
     const s = createQueue(fakeTracks(3), 2, { repeat: 'all', uid: seqUid() });
     const step = next(s, { auto: true });
     expect(step.action).toBe('play');
-    expect(currentItem(step.state)!.track.id).toBe('mock:1');
+    expect(currentItem(step.state)!.track.id).toBe('folder:1');
   });
 
   it('repeat one: hết bài thì phát lại, bấm next thì sang bài', () => {
@@ -108,7 +108,7 @@ describe('next / prev', () => {
     expect(next(s, { auto: true }).action).toBe('restart');
     const manual = next(s);
     expect(manual.action).toBe('play');
-    expect(currentItem(manual.state)!.track.id).toBe('mock:3');
+    expect(currentItem(manual.state)!.track.id).toBe('folder:3');
   });
 
   it('prev: >3s thì về đầu bài, ≤3s thì lùi bài', () => {
@@ -117,14 +117,14 @@ describe('next / prev', () => {
     expect(prev(s, 10).state.index).toBe(1);
     const back = prev(s, 2);
     expect(back.action).toBe('play');
-    expect(currentItem(back.state)!.track.id).toBe('mock:1');
+    expect(currentItem(back.state)!.track.id).toBe('folder:1');
   });
 
   it('prev ở bài đầu: repeat off → về đầu bài; repeat all → bài cuối', () => {
     const s = createQueue(fakeTracks(3), 0, { uid: seqUid() });
     expect(prev(s, 0).action).toBe('restart');
     const all = prev({ ...s, repeat: 'all' }, 0);
-    expect(currentItem(all.state)!.track.id).toBe('mock:3');
+    expect(currentItem(all.state)!.track.id).toBe('folder:3');
   });
 
   it('prev/next đúng thứ tự khi đang shuffle', () => {
@@ -148,47 +148,47 @@ describe('thao tác hàng đợi', () => {
   it('playNext chèn ngay sau bài hiện tại', () => {
     const uid = seqUid();
     const s = createQueue(fakeTracks(3), 0, { uid });
-    const out = playNext(s, [{ ...fakeTracks(1)[0], id: 'mock:99' }], uid);
-    expect(ids(out)).toEqual(['mock:1', 'mock:99', 'mock:2', 'mock:3']);
+    const out = playNext(s, [{ ...fakeTracks(1)[0], id: 'folder:99' }], uid);
+    expect(ids(out)).toEqual(['folder:1', 'folder:99', 'folder:2', 'folder:3']);
   });
 
   it('playNext khi shuffle chèn vào cả thứ tự phát và thứ tự gốc', () => {
     const uid = seqUid();
     const s = createQueue(fakeTracks(5), 2, { shuffle: true, rng: seededRng(8), uid });
-    const out = playNext(s, [{ ...fakeTracks(1)[0], id: 'mock:99' }], uid);
-    expect(out.items[1].track.id).toBe('mock:99');
+    const out = playNext(s, [{ ...fakeTracks(1)[0], id: 'folder:99' }], uid);
+    expect(out.items[1].track.id).toBe('folder:99');
     const off = setShuffle(out, false);
-    expect(ids(off)).toEqual(['mock:1', 'mock:2', 'mock:3', 'mock:99', 'mock:4', 'mock:5']);
+    expect(ids(off)).toEqual(['folder:1', 'folder:2', 'folder:3', 'folder:99', 'folder:4', 'folder:5']);
   });
 
   it('enqueue thêm vào cuối; hàng đợi rỗng thì thành bài hiện tại', () => {
     const empty = createQueue([], 0);
     const a = enqueue(empty, fakeTracks(2));
     expect(a.index).toBe(0);
-    const b = enqueue(a, [{ ...fakeTracks(1)[0], id: 'mock:9' }]);
-    expect(ids(b).at(-1)).toBe('mock:9');
+    const b = enqueue(a, [{ ...fakeTracks(1)[0], id: 'folder:9' }]);
+    expect(ids(b).at(-1)).toBe('folder:9');
   });
 
   it('removeItem không xóa bài đang phát và giữ index đúng', () => {
     const s = createQueue(fakeTracks(4), 2, { uid: seqUid() });
     expect(removeItem(s, s.items[2].uid)).toBe(s);
     const out = removeItem(s, s.items[0].uid);
-    expect(currentItem(out)!.track.id).toBe('mock:3');
+    expect(currentItem(out)!.track.id).toBe('folder:3');
     expect(out.items).toHaveLength(3);
   });
 
   it('moveItem đổi chỗ và giữ bài hiện tại', () => {
     const s = createQueue(fakeTracks(4), 1, { uid: seqUid() });
     const out = moveItem(s, 3, 2);
-    expect(ids(out)).toEqual(['mock:1', 'mock:2', 'mock:4', 'mock:3']);
-    expect(currentItem(out)!.track.id).toBe('mock:2');
+    expect(ids(out)).toEqual(['folder:1', 'folder:2', 'folder:4', 'folder:3']);
+    expect(currentItem(out)!.track.id).toBe('folder:2');
   });
 
   it('jumpTo và upcoming', () => {
     const s = createQueue(fakeTracks(4), 0, { uid: seqUid() });
     const j = jumpTo(s, s.items[2].uid);
     expect(j.index).toBe(2);
-    expect(upcoming(j).map((i) => i.track.id)).toEqual(['mock:4']);
+    expect(upcoming(j).map((i) => i.track.id)).toEqual(['folder:4']);
     expect(jumpTo(s, 'nope')).toBe(s);
   });
 

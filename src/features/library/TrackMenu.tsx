@@ -1,10 +1,10 @@
 import { Sheet, SheetItem } from '@/components/Sheet';
 import { Artwork } from '@/components/Artwork';
-import { HeartFilledIcon, HeartIcon, LibraryIcon, DownloadIcon, CheckCircleIcon, PlusIcon, QueueIcon, TrashIcon, UploadIcon } from '@/components/Icons';
+import { HeartFilledIcon, HeartIcon, LibraryIcon, PlusIcon, QueueIcon, SparkIcon, TrashIcon } from '@/components/Icons';
 import { toast } from '@/components/toastStore';
 import { player } from '@/features/player/store';
 import { usePlaylistPicker, useTrackMenu } from './trackMenuStore';
-import { canDownload, downloadTrack, removeDownload, useDownloads } from '@/features/downloads/manager';
+import { removeDownload } from '@/features/downloads/manager';
 import { library, useLibrary } from './store';
 
 export function TrackMenu() {
@@ -13,9 +13,7 @@ export function TrackMenu() {
   const playlistIndex = useTrackMenu((s) => s.playlistIndex);
   const close = useTrackMenu((s) => s.close);
   const liked = useLibrary((s) => !!track && s.liked.some((t) => t.id === track.id));
-  const mode = useLibrary((s) => s.mode);
   const openPicker = usePlaylistPicker((s) => s.open);
-  const downloaded = useDownloads((s) => !!track && !!s.ids[track.id]);
   const run = (fn: () => void) => () => {
     fn();
     close();
@@ -46,6 +44,14 @@ export function TrackMenu() {
             />
           )}
           <SheetItem
+            icon={<SparkIcon size={22} />}
+            label="Phát nhạc tương tự"
+            onClick={run(() => {
+              player.playRadio(track);
+              toast('Đang phát nhạc tương tự');
+            })}
+          />
+          <SheetItem
             icon={<PlusIcon size={22} />}
             label="Phát tiếp theo"
             onClick={run(() => {
@@ -61,38 +67,15 @@ export function TrackMenu() {
               toast('Đã thêm vào hàng đợi');
             })}
           />
-          {canDownload(track) && !downloaded && (
-            <SheetItem
-              icon={<DownloadIcon size={22} />}
-              label="Tải về (nghe offline)"
-              onClick={run(() => {
-                toast('Đang tải về…');
-                downloadTrack(track)
-                  .then(() => toast(`Đã tải “${track.title}”`))
-                  .catch((e: Error) => e.name !== 'AbortError' && toast(`Không tải được: ${e.message}`));
-              })}
-            />
-          )}
-          {downloaded && track.provider !== 'local' && (
-            <SheetItem
-              icon={<CheckCircleIcon size={22} className="text-accent" />}
-              label="Xóa bản tải"
-              onClick={run(() => void removeDownload(track))}
-            />
-          )}
-          {track.provider === 'local' && mode === 'cloud' && !track.storagePath && (
-            <SheetItem
-              icon={<UploadIcon size={22} />}
-              label="Tải lên đám mây (nghe trên máy khác)"
-              onClick={run(() => {
-                toast('Đang tải lên…');
-                library
-                  .uploadLocal(track)
-                  .then(() => toast('Đã đồng bộ file lên đám mây'))
-                  .catch((e: Error) => toast(`Upload lỗi: ${e.message}`));
-              })}
-            />
-          )}
+          <SheetItem
+            icon={<TrashIcon size={22} />}
+            label="Xóa khỏi điện thoại này"
+            onClick={run(() => {
+              if (window.confirm(`Xóa “${track.title}” khỏi điện thoại này? (Like và playlist vẫn giữ.)`)) {
+                void removeDownload(track).then(() => toast('Đã xóa khỏi máy'));
+              }
+            })}
+          />
         </>
       )}
     </Sheet>

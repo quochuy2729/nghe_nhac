@@ -1,7 +1,6 @@
 import { cleanArtist, cleanTitle, fetchLrclib, pickBest, type LrclibRecord } from './lrclib';
 import { loadLyrics } from './service';
-import { getLyricsRecord, resetDBForTests } from '@/lib/db';
-import { mockTracks } from '@/providers/mock';
+import { getLyricsRecord, putLyricsRecord, resetDBForTests } from '@/lib/db';
 import { fakeTrack } from '@/test/fixtures';
 
 const rec = (over: Partial<LrclibRecord>): LrclibRecord => ({
@@ -54,15 +53,17 @@ describe('fetchLrclib', () => {
 });
 
 describe('loadLyrics', () => {
-  it('bài mock dùng LRC giả đi kèm, không gọi mạng', async () => {
+  it('bài đã nạp kèm file .lrc dùng file đó, không gọi LRCLIB', async () => {
+    const t = fakeTrack(7);
+    await putLyricsRecord({ trackId: t.id, synced: ['[00:01.00]dòng giả một', '[00:03.00]dòng giả hai'].join('\n'), plain: null, source: 'file', fetchedAt: Date.now() });
     const f = vi.spyOn(globalThis, 'fetch');
-    const l = await loadLyrics(mockTracks[0]);
-    expect(l.kind).toBe('synced');
+    const l = await loadLyrics(t);
+    expect(l).toMatchObject({ kind: 'synced', source: 'file' });
     expect(f).not.toHaveBeenCalled();
   });
 
   it('LRCLIB synced → cache IndexedDB, lần sau không gọi mạng', async () => {
-    const t = fakeTrack(1, { id: 'jamendo:1', provider: 'jamendo' });
+    const t = fakeTrack(1);
     const f = vi.spyOn(globalThis, 'fetch').mockResolvedValue(json(rec({ syncedLyrics: '[00:01.00]một\n[00:02.00]hai', duration: 120 })));
     const a = await loadLyrics(t);
     expect(a).toMatchObject({ kind: 'synced', source: 'lrclib' });
@@ -73,11 +74,11 @@ describe('loadLyrics', () => {
   });
 
   it('chỉ có plainLyrics → kind plain; không có → none và cache', async () => {
-    const t = fakeTrack(2, { id: 'audius:2', provider: 'audius' });
+    const t = fakeTrack(2);
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(json(rec({ duration: 120 })));
     expect((await loadLyrics(t)).kind).toBe('plain');
 
-    const t2 = fakeTrack(3, { id: 'audius:3', provider: 'audius' });
+    const t2 = fakeTrack(3);
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(json({}, 404)).mockResolvedValueOnce(json([]));
     expect((await loadLyrics(t2)).kind).toBe('none');
     expect(await getLyricsRecord(t2.id)).toMatchObject({ synced: null, plain: null });

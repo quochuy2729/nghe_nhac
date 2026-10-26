@@ -2,8 +2,8 @@ import type { Track } from '@/providers/types';
 
 export function fakeTrack(n: number, extra: Partial<Track> = {}): Track {
   return {
-    id: `mock:${n}`,
-    provider: 'mock',
+    id: `folder:${n}`,
+    provider: 'folder',
     title: `Bài thử ${n}`,
     artist: 'Nghệ sĩ thử',
     durationSec: 120,

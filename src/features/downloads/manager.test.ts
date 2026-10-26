@@ -1,83 +1,52 @@
-import { canDownload, downloadTrack, fetchWithProgress, initDownloads, refreshDownloads, removeDownload, useDownloads } from './manager';
+import { initDownloads, refreshDownloads, removeDownload, useDownloads } from './manager';
 import { resolvePlayableUrl } from '@/features/player/resolve';
-import { getAudioBlob, putAudio, putTrack, resetDBForTests } from '@/lib/db';
-import { mockTracks } from '@/providers/mock';
+import { getAudioBlob, getLyricsRecord, getTrack, putAudio, putLyricsRecord, putTrack, resetDBForTests } from '@/lib/db';
+import { loadFolder, useFolder } from '@/providers/folder';
 import { fakeTrack } from '@/test/fixtures';
-
-function streamResponse(chunks: number[][], headers: Record<string, string> = {}) {
-  const body = new ReadableStream<Uint8Array>({
-    start(c) {
-      chunks.forEach((ch) => c.enqueue(new Uint8Array(ch)));
-      c.close();
-    },
-  });
-  return new Response(body, { status: 200, headers });
-}
 
 beforeEach(async () => {
   await resetDBForTests();
-  useDownloads.setState({ ids: {}, active: {}, items: [], loaded: false });
-  vi.restoreAllMocks();
-});
-
-describe('canDownload', () => {
-  it('chỉ bài cho phép tải hoặc file của tôi', () => {
-    expect(canDownload(fakeTrack(1, { downloadable: false, provider: 'audius', id: 'audius:1' }))).toBe(false);
-    expect(canDownload(fakeTrack(1, { downloadable: true, provider: 'jamendo', id: 'jamendo:1' }))).toBe(true);
-    expect(canDownload(fakeTrack(1, { downloadable: false, provider: 'local', id: 'local:1' }))).toBe(true);
-  });
-});
-
-describe('fetchWithProgress', () => {
-  it('báo tiến độ theo Content-Length', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(streamResponse([[1, 2], [3, 4]], { 'content-length': '4', 'content-type': 'audio/mpeg' }));
-    const seen: number[] = [];
-    const blob = await fetchWithProgress('https://x/a.mp3', (p) => seen.push(p));
-    expect(blob.size).toBe(4);
-    expect(blob.type).toBe('audio/mpeg');
-    expect(seen).toEqual([0.5, 1, 1]);
-  });
-
-  it('lỗi HTTP → thông báo', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('no', { status: 403 }));
-    await expect(fetchWithProgress('https://x', () => undefined)).rejects.toThrow('403');
-  });
-});
-
-describe('downloadTrack', () => {
-  it('từ chối bài không cho tải', async () => {
-    await expect(downloadTrack(fakeTrack(1, { downloadable: false, id: 'audius:9', provider: 'audius' }))).rejects.toThrow();
-  });
-
-  it('tải bài mock vào IndexedDB, phát từ blob, rồi xóa được', async () => {
-    initDownloads();
-    const track = mockTracks[0];
-    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => streamResponse([[9, 9, 9]], { 'content-length': '3' }));
-    await downloadTrack(track);
-    expect(useDownloads.getState().ids[track.id]).toBe(true);
-    expect((await getAudioBlob(track.id))?.size).toBe(3);
-    expect(useDownloads.getState().items[0].track.id).toBe(track.id);
-    // pre-resolver ưu tiên blob đã tải
-    expect(await resolvePlayableUrl(track)).toMatch(/^blob:/);
-    await removeDownload(track);
-    expect(useDownloads.getState().ids[track.id]).toBeUndefined();
-    expect(await getAudioBlob(track.id)).toBeUndefined();
-  });
-
-  it('ghi lỗi vào trạng thái khi tải thất bại', async () => {
-    const track = mockTracks[1];
-    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('Failed to fetch'));
-    await expect(downloadTrack(track)).rejects.toThrow();
-    expect(useDownloads.getState().active[track.id]).toMatchObject({ state: 'error' });
-  });
+  useDownloads.setState({ ids: {}, items: [], loaded: false });
+  useFolder.setState({ tracks: [], status: 'idle', error: null });
 });
 
 describe('refreshDownloads', () => {
-  it('liệt kê file local đã thêm', async () => {
-    const t = fakeTrack(1, { id: 'local:abc', provider: 'local' });
+  it('liệt kê bài có file trên máy kèm dung lượng', async () => {
+    const t = fakeTrack(1);
     await putTrack(t);
     await putAudio(t.id, new Blob(['12345']));
+    await putTrack(fakeTrack(2)); // có thông tin nhưng không có file → không tính
     await refreshDownloads();
-    expect(useDownloads.getState().items).toMatchObject([{ track: { id: 'local:abc' }, size: 5 }]);
+    expect(useDownloads.getState().items).toMatchObject([{ track: { id: t.id }, size: 5 }]);
+    expect(useDownloads.getState().ids[t.id]).toBe(true);
+    expect(useDownloads.getState().ids['folder:2']).toBeUndefined();
+  });
+});
+
+describe('initDownloads + phát từ blob', () => {
+  it('pre-resolver trả URL blob của file trên máy', async () => {
+    const t = fakeTrack(1);
+    await putTrack(t);
+    await putAudio(t.id, new Blob(['abc'], { type: 'audio/mpeg' }));
+    initDownloads();
+    expect(await resolvePlayableUrl(t)).toMatch(/^blob:/);
+  });
+});
+
+describe('removeDownload', () => {
+  it('xóa file, thông tin bài, lời đã lưu và cập nhật thư viện', async () => {
+    const t = fakeTrack(1);
+    await putTrack(t);
+    await putAudio(t.id, new Blob(['1']));
+    await putLyricsRecord({ trackId: t.id, synced: '[00:01.00]x', plain: null, source: 'file', fetchedAt: 1 });
+    await loadFolder();
+    expect(useFolder.getState().tracks).toHaveLength(1);
+
+    await removeDownload(t);
+    expect(await getAudioBlob(t.id)).toBeUndefined();
+    expect(await getTrack(t.id)).toBeUndefined();
+    expect(await getLyricsRecord(t.id)).toBeUndefined();
+    expect(useDownloads.getState().ids[t.id]).toBeUndefined();
+    expect(useFolder.getState().tracks).toHaveLength(0);
   });
 });

@@ -100,8 +100,8 @@ export function LibraryPage() {
               <DownloadIcon size={26} />
             </span>
             <span className="min-w-0">
-              <span className="block truncate font-semibold">Đã tải về</span>
-              <span className="block text-sm text-muted">Nghe khi không có mạng · {downloaded} bài</span>
+              <span className="block truncate font-semibold">Nhạc trên máy</span>
+              <span className="block text-sm text-muted">Nghe không cần mạng · {downloaded} bài</span>
             </span>
           </Link>
         </li>

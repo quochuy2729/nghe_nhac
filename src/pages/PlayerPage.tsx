@@ -10,7 +10,6 @@ import { QueueSheet } from '@/features/player/QueueSheet';
 import { useCurrentTrack } from '@/features/player/hooks';
 import { useQueueStore, usePlayback, player } from '@/features/player/store';
 import { LikeButton } from '@/features/library/LikeButton';
-import { DownloadButton } from '@/features/downloads/DownloadButton';
 import { LyricsCard } from '@/features/lyrics/LyricsCard';
 
 export function PlayerPage() {
@@ -82,7 +81,6 @@ export function PlayerPage() {
             <Link to="/lyrics" aria-label="Lời bài hát" className="icon-btn -ml-2 gap-2 px-2 text-sm text-white/80">
               <MicIcon size={20} /> Lời bài hát
             </Link>
-            <DownloadButton track={track} size={24} />
             <button type="button" onClick={() => setQueueOpen(true)} className="icon-btn -mr-2 gap-2 px-2 text-sm text-white/80">
               <QueueIcon size={20} /> Hàng đợi
             </button>

@@ -1,5 +1,7 @@
 # analysis.md — Phân tích yêu cầu & kiến trúc
 
+> **Cập nhật 2026-10-26**: nguồn nhạc đã đổi sang *một thư mục trên PC* (xem §9). Các mục §3 (Jamendo/Audius/local), §5 (upload Storage `user_files`) và phần Demo/GitHub Pages ở §6, §8 chỉ còn là lịch sử. Phần player, lyrics, offline, auth/library vẫn đúng.
+
 ## 1. Yêu cầu (từ chủ repo)
 | # | Yêu cầu | Ưu tiên |
 |---|---------|---------|
@@ -85,3 +87,39 @@ playlist_tracks(playlist_id uuid, track_id text, position int, pk(playlist_id, p
 - **Đồng bộ**: tải lại khi app vào foreground/có mạng, không dùng Supabase Realtime. Muốn cập nhật tức thì khi cả hai máy cùng mở thì có thể bật Realtime cho `liked_tracks`/`playlist_tracks`.
 - **iOS lock screen**: không đăng ký `seekbackward/seekforward` để iOS hiện nút bài trước/sau. Cần ghi lại kết quả thực tế trên iPhone 12 Pro (iOS ≥ 16.4, chế độ standalone) — chưa có thiết bị thật trong sandbox.
 - **Poco X8 Pro**: kiểm tra layout ở viewport 412×915 (giả định, chưa có thông số chính xác) và 390×844 (iPhone 12 Pro): không tràn ngang, vùng chạm ≥ 44px. MIUI/HyperOS có thể diệt Chrome nền — README hướng dẫn tắt tiết kiệm pin cho Chrome.
+
+## 9. Đổi hướng: nhạc nằm trong điện thoại + gợi ý (2026-10-26)
+### Yêu cầu hiện hành
+Chỉ nghe nhạc (không video) có sẵn **trong điện thoại** (Poco X8 Pro, iPhone 12 Pro), không nghe trên PC/laptop; có shuffle và gợi ý bài tương tự dựa trên thói quen nghe, như Spotify/Spotube.
+
+### Lịch sử quyết định (cùng ngày)
+1. Bỏ Jamendo/Audius/Demo, chỉ giữ "folder". Lúc đầu hiểu là folder trên PC → đã viết server Node (quét tag, HTTP Range, cover, lrc, phục vụ `dist/`) và test chạy thật.
+2. Chủ repo làm rõ: *nhạc nằm hẳn trong điện thoại, không nghe trên PC* → **bỏ toàn bộ server**; thư viện = file đã nạp vào IndexedDB của từng điện thoại.
+
+### Quyết định kiến trúc hiện tại
+- **Nạp nhạc bằng `<input type=file>`** (thư mục qua `webkitdirectory`, hoặc nhiều file). Lý do: PWA không đọc được folder tùy ý; iOS không có `showDirectoryPicker`; Android Chrome cũng chưa chắc có. Đánh đổi: nhạc bị **sao chép** vào IndexedDB (tốn gấp đôi dung lượng), và phải chọn lại khi có bài mới (bài đã có tự bỏ qua).
+- **Id = hash53(tên file NFC + dung lượng)**: không đọc nội dung nên nhanh; cùng file trên 2 máy → cùng id → like/playlist đồng bộ đúng bài. Chuẩn hóa NFC vì iOS hay trả tên NFD. Đổi tên file = bài mới. Hash thuần JS để không phụ thuộc `crypto.subtle` (chỉ có trên https).
+- **Mỗi máy một kho nhạc**. Playlist đồng bộ có thể chứa bài chưa có trên máy kia → `getStreamUrl` báo lỗi dễ hiểu và player tự bỏ qua sang bài kế (tối đa một vòng).
+- **GitHub Pages dùng lại được** (không còn server http gây mixed content) → `deploy.yml` còn hiệu lực (đã bỏ secret Jamendo).
+- **Bỏ chức năng "Tải về"** (không còn nguồn từ xa). Module `downloads` còn lại làm "Nhạc trên máy": danh sách, dung lượng, xóa, `persist()`. Xóa bài = xóa file + thông tin + lời; like/playlist giữ nguyên.
+- **Supabase** chỉ còn liked/playlist. Migration `20261026000000_folder_provider.sql` cho phép provider `folder` và coi metadata `folder` là riêng tư (như `local`). Bảng `user_files`/bucket `user-audio` không còn dùng (để nguyên).
+- **Ảnh bìa** nhúng trong tag được thu nhỏ 300px → data URL lưu trong thông tin bài; hàng đợi lưu localStorage tự bỏ ảnh lớn (`slimItem`).
+
+### Mô hình gợi ý (features/recommend)
+- Điểm = 0.5·phiên + 0.3·gu dài hạn + 0.2·đồng nghe (chuẩn hóa theo thành phần có dữ liệu); trừ điểm bài vừa nghe < 6 giờ và bài hay bị bỏ qua; thêm nhiễu nhỏ cho đa dạng.
+- Độ giống nội dung chỉ tính trên đặc trưng **cả hai bài đều có** (nghệ sĩ .35, thể loại .30, BPM .15, album .10, năm .10) → nhạc thiếu tag không bị điểm 0 oan.
+- Phân loại lượt nghe: complete ≥ 80% (hoặc còn < 8s), skip < min(30s, 30% độ dài), còn lại partial; < 5s bỏ qua. Thời gian nghe tính từ `timeupdate` (bỏ đoạn tua).
+- Bán rã gu dài hạn 21 ngày; lịch sử tối đa 3000 lượt, localStorage (chỉ trên máy).
+- **Lỗi đã gặp khi viết test**: tách nghệ sĩ bằng regex `\bx\b` làm nghệ sĩ tên "X" biến mất → chỉ coi `x/feat/và` là dấu nối khi đứng giữa hai khoảng trắng.
+- **Shuffle** vẫn là Fisher–Yates giữ bài hiện tại (P1); chưa có "smart shuffle" theo gu.
+
+### Checklist
+- [x] **F1 Nhạc trong điện thoại**: `importFiles` (tag, ảnh bìa, .lrc, bỏ trùng, tiến độ), `ImportMusic`, thư viện từ IndexedDB, tìm kiếm không dấu; bỏ Jamendo/Audius/Demo/tải về/server.
+- [x] **F2 Gợi ý**: lịch sử nghe, engine, Trang chủ (Nghe gần đây / Dành cho bạn / Mix / Mới thêm), "Phát nhạc tương tự", tự nối khi hết hàng đợi, cài đặt bật/tắt + xóa lịch sử.
+- [ ] **F3 (tùy chọn)**: phân tích âm thanh (tempo/năng lượng) trong trình duyệt để gợi ý khi thiếu tag; smart shuffle; nút "Radio" trong màn Đang phát; Android: lưu `FileSystemDirectoryHandle` để quét lại không cần chọn lại thư mục (không sao chép file).
+
+### Rủi ro / chưa kiểm chứng
+- **Chưa thử trên điện thoại thật**: `webkitdirectory` trên Safari iOS, ghi file lớn vào IndexedDB trên iOS, thư viện hàng nghìn bài/vài GB, nghe nền iPhone. Chưa mở giao diện bằng trình duyệt thật (chỉ có unit test jsdom + build).
+- iOS Safari có thể dọn dữ liệu web app khi lâu không mở dù đã `persist()`; người dùng cần giữ bản nhạc gốc.
+- Nạp thư viện lớn đọc tuần tự từng file nên lâu; chưa có chạy nền hay tiếp tục khi tắt app giữa chừng (bài đã xong vẫn còn, chọn lại thư mục sẽ bỏ qua bài đã có).
+- Thư viện không có tag thể loại → gợi ý chủ yếu theo nghệ sĩ + lịch sử.

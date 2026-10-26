@@ -33,7 +33,6 @@ jobs:
           VITE_BASE: /${{ github.event.repository.name }}/
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-          VITE_JAMENDO_CLIENT_ID: ${{ secrets.VITE_JAMENDO_CLIENT_ID }}
       - uses: actions/upload-pages-artifact@v3
         if: github.event_name != 'pull_request'
         with:

@@ -32,13 +32,12 @@ export async function loadLyrics(track: Track, signal?: AbortSignal): Promise<Ly
     return toLyrics(cached);
   }
 
-  // 1. Lời đi kèm nguồn (file .lrc của bạn, demo)
+  // 1. File .lrc nằm cạnh file nhạc trong folder
   const own = await providerOf(track).getLyrics?.(track).catch(() => null);
   if (own) {
-    const rec = { trackId: track.id, ...fromText(own, track.provider === 'local' ? 'file' : 'provider'), fetchedAt: Date.now() };
+    const rec = { trackId: track.id, ...fromText(own, 'file'), fetchedAt: Date.now() };
     return toLyrics(rec);
   }
-  if (track.provider === 'mock') return { kind: 'none' };
 
   // 2. LRCLIB
   const hit = await fetchLrclib(track, signal);

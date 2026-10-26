@@ -1,8 +1,9 @@
-export type ProviderId = 'jamendo' | 'audius' | 'local' | 'mock';
+/** Nguồn nhạc duy nhất: file nhạc bạn nạp vào điện thoại (xem providers/folder.ts). */
+export type ProviderId = 'folder';
 
 /**
  * Metadata một bài hát. `id` là khóa toàn cục dạng `<provider>:<sourceId>`
- * (vd `jamendo:12345`) để lưu chung một bảng `tracks` trên Supabase.
+ * (vd `folder:0a3fa9c1d20b7e`, hash của tên file + dung lượng) để lưu chung một bảng `tracks` trên Supabase.
  */
 export interface Track {
   id: string;
@@ -10,14 +11,19 @@ export interface Track {
   title: string;
   artist: string;
   album?: string;
+  albumArtist?: string;
+  /** Thể loại từ tag, đã tách (["Pop", "Indie"]). Dùng cho gợi ý. */
+  genre?: string[];
+  year?: number;
+  bpm?: number;
   durationSec: number;
   artworkUrl?: string;
-  /** Provider cho phép tải về (hoặc là file của chính người dùng). */
+  /** Luôn true với bài nạp vào máy; giữ trường để khớp schema Supabase. */
   downloadable: boolean;
-  /** URL stream đã biết sẵn (vd Jamendo trả kèm khi search). */
+  /** Thời điểm nạp vào máy (ms) — dùng cho "Mới thêm". */
+  addedAt?: number;
+  /** URL stream đã biết sẵn (không dùng cho nhạc trên máy; giữ cho tương thích dữ liệu đã lưu). */
   streamUrl?: string;
-  /** Đường dẫn file trong Supabase Storage (chỉ track local đã upload). */
-  storagePath?: string;
 }
 
 export interface MusicProvider {
@@ -29,7 +35,7 @@ export interface MusicProvider {
   getStreamUrl(track: Track): Promise<string>;
   /** null = không cho tải. */
   getDownloadUrl?(track: Track): Promise<string | null>;
-  /** Lời bài hát LRC kèm theo nguồn (vd mock, file .lrc local). */
+  /** Lời bài hát LRC kèm theo (file .lrc đã nạp cùng file nhạc). */
   getLyrics?(track: Track): Promise<string | null>;
 }
 

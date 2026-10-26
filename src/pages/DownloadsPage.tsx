@@ -4,6 +4,7 @@ import { Artwork } from '@/components/Artwork';
 import { TrashIcon } from '@/components/Icons';
 import { player } from '@/features/player/store';
 import { formatBytes } from '@/lib/utils';
+import { ImportMusic } from '@/features/folder/ImportMusic';
 import { removeDownload, requestPersist, storageEstimate, useDownloads, refreshDownloads } from '@/features/downloads/manager';
 
 export function DownloadsPage() {
@@ -23,7 +24,7 @@ export function DownloadsPage() {
 
   return (
     <div className="pb-6">
-      <CollectionHeaderBack title="Đã tải về" />
+      <CollectionHeaderBack title="Nhạc trên máy" />
       <section className="mx-4 rounded-lg bg-surface-2 p-4 text-sm">
         <p>
           <span className="font-semibold">{items.length} bài</span> · {formatBytes(total)}
@@ -47,21 +48,22 @@ export function DownloadsPage() {
               setEst(await storageEstimate());
             }}
           >
-            Giữ dữ liệu offline (không tự xóa)
+            Giữ nhạc trên máy (không tự xóa)
           </button>
         )}
         {est?.persisted && <p className="mt-2 text-xs text-accent">Đã bật lưu trữ bền vững.</p>}
       </section>
 
       {loaded && items.length === 0 && (
-        <p className="px-6 py-10 text-center text-sm text-muted">
-          Chưa có bài nào. Bấm biểu tượng tải về ở bài có nhãn “Tải được” hoặc thêm file nhạc của bạn ở tab Tìm kiếm → Của tôi.
-        </p>
+        <div className="px-4 py-8 text-center text-sm text-muted">
+          <p className="mb-4">Chưa có bài nào trên điện thoại này.</p>
+          <ImportMusic />
+        </div>
       )}
 
       {items.length > 0 && (
         <div className="mt-4 flex justify-end px-4">
-          <button type="button" className="chip chip-active" onClick={() => player.playTracks(tracks, 0, 'Đã tải về')}>
+          <button type="button" className="chip chip-active" onClick={() => player.playTracks(tracks, 0, 'Nhạc trên máy')}>
             Phát tất cả
           </button>
         </div>
@@ -69,12 +71,12 @@ export function DownloadsPage() {
       <ul className="mt-2">
         {items.map((it, i) => (
           <li key={it.track.id} className="flex min-h-[60px] items-center gap-3 px-4">
-            <button type="button" className="flex min-w-0 flex-1 items-center gap-3 py-1.5 text-left" onClick={() => player.playTracks(tracks, i, 'Đã tải về')}>
+            <button type="button" className="flex min-w-0 flex-1 items-center gap-3 py-1.5 text-left" onClick={() => player.playTracks(tracks, i, 'Nhạc trên máy')}>
               <Artwork src={it.track.artworkUrl} className="h-12 w-12" />
               <span className="min-w-0">
                 <span className="block truncate text-[15px] font-medium">{it.track.title}</span>
                 <span className="block truncate text-[13px] text-muted">
-                  {it.track.provider === 'local' ? 'File của tôi' : it.track.artist} · {formatBytes(it.size)}
+                  {it.track.artist} · {formatBytes(it.size)}
                 </span>
               </span>
             </button>
@@ -83,8 +85,7 @@ export function DownloadsPage() {
               className="icon-btn -mr-2 text-muted"
               aria-label={`Xóa ${it.track.title} khỏi máy`}
               onClick={() => {
-                const msg = it.track.provider === 'local' ? `Xóa file “${it.track.title}” khỏi máy này?` : `Xóa bản tải “${it.track.title}”?`;
-                if (window.confirm(msg)) void removeDownload(it.track);
+                if (window.confirm(`Xóa “${it.track.title}” khỏi điện thoại này? (Like và playlist vẫn giữ.)`)) void removeDownload(it.track);
               }}
             >
               <TrashIcon size={20} />
