@@ -8,6 +8,7 @@ import { initLibrary } from '@/features/library/store';
 import { TrackMenu } from '@/features/library/TrackMenu';
 import { initPlayer } from '@/features/player/store';
 import { loadHistory } from '@/features/recommend/history';
+import { platform } from '@/platform';
 import { loadFolder } from '@/providers/folder';
 import { CloseOverlaysOnNavigate } from './CloseOverlaysOnNavigate';
 import { ErrorBoundary } from './ErrorBoundary';
@@ -28,6 +29,7 @@ export function App() {
     initDownloads();
     void loadFolder();
     void loadHistory();
+    return platform.library.startAutoRescan?.();
   }, []);
 
   return (

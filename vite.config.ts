@@ -4,8 +4,10 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import { fileURLToPath, URL } from 'node:url';
 
+// BUILD_TARGET=android: nhúng vào APK (đường dẫn tương đối, không service worker).
+const android = process.env.BUILD_TARGET === 'android';
 // GitHub Pages phục vụ app dưới /<tên-repo>/. Có thể ghi đè bằng VITE_BASE.
-const base = process.env.VITE_BASE ?? (process.env.GITHUB_ACTIONS ? '/nghe_nhac/' : '/');
+const base = android ? './' : (process.env.VITE_BASE ?? (process.env.GITHUB_ACTIONS ? '/nghe_nhac/' : '/'));
 
 export default defineConfig({
   base,
@@ -17,7 +19,8 @@ export default defineConfig({
   },
   plugins: [
     react(),
-    VitePWA({
+    // APK: không đăng ký service worker (asset đã nằm trong gói app).
+    ...(android ? [] : [VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['icons/apple-touch-icon.png', 'icons/favicon.svg'],
       manifest: {
@@ -55,7 +58,7 @@ export default defineConfig({
           },
         ],
       },
-    }),
+    })]),
   ],
   test: {
     globals: true,

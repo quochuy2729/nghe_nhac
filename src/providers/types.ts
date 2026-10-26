@@ -25,7 +25,9 @@ export interface Track {
   /** Đường dẫn thư mục tương đối (vd "Nhạc/Pop"), để duyệt theo thư mục. */
   folder?: string;
   /** Nơi giữ file: IndexedDB (web) hoặc URI SAF (Android, không sao chép file). */
-  source?: { kind: 'idb' } | { kind: 'saf'; uri: string; mtime: number };
+  source?:
+    | { kind: 'idb' }
+    | { kind: 'saf'; uri: string; mtime: number; folderId?: string; lrc?: { uri: string; mtime: number } };
   /** URL stream đã biết sẵn (không dùng cho nhạc trên máy; giữ cho tương thích dữ liệu đã lưu). */
   streamUrl?: string;
 }

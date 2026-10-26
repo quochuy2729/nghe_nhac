@@ -5,6 +5,7 @@
  */
 import { create } from 'zustand';
 import {
+  type LyricsRecord,
   audioObjectUrl,
   getLyricsRecord,
   putAudio,
@@ -109,6 +110,12 @@ function probeDuration(file: Blob): Promise<number> {
 
 export { trackIdFor };
 
+/** Lời lấy từ file .lrc cùng tên: có mốc thời gian [mm:ss] thì là lời đồng bộ, không thì lời thường. */
+export function lyricsRecordFromFile(trackId: string, text: string): LyricsRecord {
+  const synced = /\[\d{1,3}:\d{1,2}([.:]\d{1,3})?\]/.test(text);
+  return { trackId, synced: synced ? text : null, plain: synced ? null : text, source: 'file', fetchedAt: Date.now() };
+}
+
 /** Thư mục chứa file, lấy từ `webkitRelativePath` ("Nhạc/Pop/a.mp3" → "Nhạc/Pop"); chọn file lẻ thì không có. */
 export function folderOf(file: File): string | undefined {
   const rel = file.webkitRelativePath?.normalize('NFC');
@@ -173,11 +180,7 @@ export async function importFiles(files: File[], onProgress?: (done: number, tot
       await putAudio(id, file);
       await putTrack(track);
       const lrc = lrcByBase.get(baseName(file.name).normalize('NFC').toLowerCase());
-      if (lrc) {
-        const text = await lrc.text();
-        const synced = /\[\d{1,3}:\d{1,2}([.:]\d{1,3})?\]/.test(text);
-        await putLyricsRecord({ trackId: id, synced: synced ? text : null, plain: synced ? null : text, source: 'file', fetchedAt: Date.now() });
-      }
+      if (lrc) await putLyricsRecord(lyricsRecordFromFile(id, await lrc.text()));
       added.push(track);
     } catch {
       failed.push(file.name);

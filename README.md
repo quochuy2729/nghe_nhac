@@ -96,3 +96,46 @@ supabase/migrations/   SQL schema + RLS
 - Mỗi lần thêm nhạc, app đọc từng file lần lượt (khá lâu với thư viện lớn); đừng tắt app khi đang đọc.
 - Chưa phân tích âm thanh (tempo/năng lượng) — gợi ý dựa trên tag và hành vi nghe.
 - Chi tiết kiến trúc và các quyết định: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), bản phân tích v1 ở [`docs/history/analysis-v1.md`](docs/history/analysis-v1.md).
+
+## 8. Bản Android (APK cho Poco)
+
+APK đọc **thẳng** thư mục nhạc bạn chọn (không sao chép file, không tốn thêm dung lượng) và tự quét lại khi mở app.
+
+### 8.1 Tạo keystore (làm một lần, giữ file này cẩn thận)
+Mọi bản APK phải ký bằng **cùng một** keystore thì mới cài đè bản mới lên bản cũ được. Mất file này = phải gỡ app và cài lại từ đầu.
+
+```bash
+keytool -genkeypair -v -keystore nghenhac.keystore -alias nghenhac \
+  -keyalg RSA -keysize 2048 -validity 10000
+base64 -w0 nghenhac.keystore > nghenhac.keystore.b64      # macOS: base64 -i nghenhac.keystore -o nghenhac.keystore.b64
+```
+Windows PowerShell: `[Convert]::ToBase64String([IO.File]::ReadAllBytes("nghenhac.keystore")) | Set-Content nghenhac.keystore.b64`.
+Đừng commit keystore (`.gitignore` đã chặn `*.keystore`, `*.jks`).
+
+### 8.2 Điền 4 GitHub Secrets
+Repo → Settings → Secrets and variables → Actions → New repository secret:
+
+| Secret | Giá trị |
+|---|---|
+| `ANDROID_KEYSTORE_B64` | nội dung file `nghenhac.keystore.b64` |
+| `ANDROID_KEYSTORE_PASSWORD` | mật khẩu keystore đã nhập ở `keytool` |
+| `ANDROID_KEY_ALIAS` | `nghenhac` |
+| `ANDROID_KEY_PASSWORD` | mật khẩu key (trùng mật khẩu keystore nếu bạn không đặt riêng) |
+
+Thiếu `ANDROID_KEYSTORE_B64` thì workflow vẫn chạy nhưng APK **chưa ký**, không cài được.
+
+### 8.3 Lấy APK
+- Mỗi lần push, workflow **Build Android APK** chạy; tải file ở mục **Artifacts** (`nghe-nhac-apk`) của lần chạy đó.
+- Muốn có bản phát hành: `git tag v0.1.0 && git push origin v0.1.0` → APK được đính vào **Releases**.
+
+### 8.4 Cài lên Poco
+1. Chép APK sang điện thoại (hoặc mở link Release bằng trình duyệt trên điện thoại).
+2. Mở file, khi được hỏi thì bật **Cài đặt ứng dụng không rõ nguồn gốc** cho trình duyệt/trình quản lý file đang dùng.
+3. Mở Nghe Nhạc → **Cài đặt → Thêm thư mục nhạc** → chọn thư mục (vd `Music`) → bấm **Sử dụng thư mục này** → **Cho phép**. App nhớ quyền này; nếu bạn thu hồi quyền trong cài đặt hệ thống thì chọn lại thư mục.
+4. Lần quét đầu đọc tag toàn bộ thư mục (hiện “Đang đọc x/y”); các lần sau chỉ đọc file mới/đổi.
+
+### 8.5 Chạy cục bộ (cần Android Studio / JDK 21)
+```bash
+npm run build:android   # vite build (BUILD_TARGET=android) + cap sync
+cd android && ./gradlew assembleDebug
+```

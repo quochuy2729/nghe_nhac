@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Nghe Nhạc</string>
+    <string name="title_activity_main">Nghe Nhạc</string>
+    <string name="package_name">io.github.quochuy2729.nghenhac</string>
+    <string name="custom_url_scheme">io.github.quochuy2729.nghenhac</string>
+</resources>

@@ -25,6 +25,8 @@ export interface LibrarySource {
   removeFolder(id: string): Promise<void>;
   /** Quét tăng dần: chỉ đọc tag file mới/đổi (theo id + mtime). Gọi khi mở app (Android). */
   rescan(onProgress?: (done: number, total: number) => void): Promise<{ added: number; removed: number }>;
+  /** Android: tự quét lại khi mở app / quay lại foreground. Trả hàm hủy. Web không cần. */
+  startAutoRescan?(): () => void;
   /** URL để engine phát (web: blob URL; android: content:// URI đưa thẳng cho Media3). */
   resolve(track: Track): Promise<string>;
   artwork(track: Track): Promise<string | null>;
