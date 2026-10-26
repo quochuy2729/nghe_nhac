@@ -122,7 +122,7 @@ export function recencyDecay(ageMs: number): number {
 /** Điểm yêu thích từng bài (có thể âm nếu hay bị bỏ qua). */
 export function trackAffinity(events: readonly PlayEvent[], liked: ReadonlySet<string>, now: number): Map<string, number> {
   const m = new Map<string, number>();
-  for (const e of events) m.set(e.id, (m.get(e.id) ?? 0) + KIND_WEIGHT[e.kind] * recencyDecay(now - e.t));
+  for (const e of events) m.set(e.trackId, (m.get(e.trackId) ?? 0) + KIND_WEIGHT[e.kind] * recencyDecay(now - e.t));
   for (const id of liked) m.set(id, (m.get(id) ?? 0) + LIKE_WEIGHT);
   return m;
 }
@@ -147,8 +147,8 @@ export function buildCoPlay(events: readonly PlayEvent[]): CoPlay {
   for (let i = 0; i < good.length; i++) {
     for (let k = 1; k <= CO_WINDOW && i + k < good.length; k++) {
       if (good[i + k].t - good[i + k - 1].t > SESSION_GAP_MS) break;
-      add(good[i].id, good[i + k].id, 1 / k);
-      add(good[i + k].id, good[i].id, 1 / k);
+      add(good[i].trackId, good[i + k].trackId, 1 / k);
+      add(good[i + k].trackId, good[i].trackId, 1 / k);
     }
   }
   return co;
@@ -185,7 +185,7 @@ function prepare(s: Signals): Prepared {
   const sorted = [...s.events].sort((a, b) => b.t - a.t);
   const session: Track[] = [];
   for (const e of sorted) {
-    const t = byId.get(e.id);
+    const t = byId.get(e.trackId);
     if (e.kind !== 'skip' && t && !session.includes(t)) session.push(t);
     if (session.length >= SESSION_SIZE) break;
   }
@@ -195,7 +195,7 @@ function prepare(s: Signals): Prepared {
     .sort((a, b) => Math.abs(b.w) - Math.abs(a.w))
     .slice(0, TASTE_SIZE);
   const recentlyPlayed = new Map<string, number>();
-  for (const e of sorted) if (!recentlyPlayed.has(e.id)) recentlyPlayed.set(e.id, e.t);
+  for (const e of sorted) if (!recentlyPlayed.has(e.trackId)) recentlyPlayed.set(e.trackId, e.t);
   return {
     byId,
     affinity,
@@ -360,9 +360,9 @@ export function recentlyPlayedTracks(events: readonly PlayEvent[], library: read
   const out: Track[] = [];
   const seen = new Set<string>();
   for (const e of [...events].sort((a, b) => b.t - a.t)) {
-    if (e.kind === 'skip' || seen.has(e.id)) continue;
-    seen.add(e.id);
-    const t = byId.get(e.id);
+    if (e.kind === 'skip' || seen.has(e.trackId)) continue;
+    seen.add(e.trackId);
+    const t = byId.get(e.trackId);
     if (t) out.push(t);
     if (out.length >= limit) break;
   }

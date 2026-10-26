@@ -95,4 +95,4 @@ supabase/migrations/   SQL schema + RLS
 - **Chưa kiểm thử trên điện thoại thật**: chọn thư mục (`webkitdirectory`) trên Safari iOS, thư viện lớn (hàng nghìn bài, vài GB) và nghe nền trên iPhone/Poco. Nếu iPhone không chọn được thư mục thì dùng **Thêm file**.
 - Mỗi lần thêm nhạc, app đọc từng file lần lượt (khá lâu với thư viện lớn); đừng tắt app khi đang đọc.
 - Chưa phân tích âm thanh (tempo/năng lượng) — gợi ý dựa trên tag và hành vi nghe.
-- Chi tiết kiến trúc và các quyết định: [`analysis.md`](analysis.md) và [`../ANALYSIS.md`](../ANALYSIS.md).
+- Chi tiết kiến trúc và các quyết định: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), bản phân tích v1 ở [`docs/history/analysis-v1.md`](docs/history/analysis-v1.md).

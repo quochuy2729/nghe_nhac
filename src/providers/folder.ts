@@ -13,6 +13,7 @@ import {
   hasAudio,
   tracksByProvider,
 } from '@/lib/db';
+import { trackIdFor } from '@/lib/id';
 import { normalizeText } from '@/lib/text';
 import type { MusicProvider, Track } from './types';
 
@@ -47,28 +48,6 @@ export function normalizeGenres(raw: readonly string[] | undefined): string[] {
     }
   }
   return [...out.values()];
-}
-
-/** cyrb53: hash 53-bit thuần JS, cho cùng kết quả ở mọi trình duyệt (không phụ thuộc crypto.subtle/https). */
-function hash53(str: string): string {
-  let h1 = 0xdeadbeef;
-  let h2 = 0x41c6ce57;
-  for (let i = 0; i < str.length; i++) {
-    const ch = str.charCodeAt(i);
-    h1 = Math.imul(h1 ^ ch, 2654435761);
-    h2 = Math.imul(h2 ^ ch, 1597334677);
-  }
-  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
-  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
-  return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(16).padStart(14, '0');
-}
-
-/**
- * id theo tên file + dung lượng (không đọc nội dung nên nhanh). Cùng một file chép vào hai điện thoại
- * cho cùng id → like/playlist đồng bộ đúng bài. Chuẩn hóa NFC vì iOS hay trả tên file dạng NFD.
- */
-export function trackIdFor(file: { name: string; size: number }): string {
-  return `folder:${hash53(`${file.name.normalize('NFC')}|${file.size}`)}`;
 }
 
 async function pictureToDataUrl(data: Uint8Array, format: string): Promise<string | undefined> {
@@ -128,6 +107,15 @@ function probeDuration(file: Blob): Promise<number> {
   });
 }
 
+export { trackIdFor };
+
+/** Thư mục chứa file, lấy từ `webkitRelativePath` ("Nhạc/Pop/a.mp3" → "Nhạc/Pop"); chọn file lẻ thì không có. */
+export function folderOf(file: File): string | undefined {
+  const rel = file.webkitRelativePath?.normalize('NFC');
+  if (!rel || !rel.includes('/')) return undefined;
+  return rel.slice(0, rel.lastIndexOf('/'));
+}
+
 export interface ImportResult {
   added: Track[];
   /** đã có sẵn trên máy (cùng tên + dung lượng) */
@@ -179,6 +167,8 @@ export async function importFiles(files: File[], onProgress?: (done: number, tot
         ...(tags.artworkUrl ? { artworkUrl: tags.artworkUrl } : {}),
         downloadable: true,
         addedAt: Date.now(),
+        ...(folderOf(file) ? { folder: folderOf(file) } : {}),
+        source: { kind: 'idb' },
       };
       await putAudio(id, file);
       await putTrack(track);

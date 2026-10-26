@@ -22,6 +22,10 @@ export interface Track {
   downloadable: boolean;
   /** Thời điểm nạp vào máy (ms) — dùng cho "Mới thêm". */
   addedAt?: number;
+  /** Đường dẫn thư mục tương đối (vd "Nhạc/Pop"), để duyệt theo thư mục. */
+  folder?: string;
+  /** Nơi giữ file: IndexedDB (web) hoặc URI SAF (Android, không sao chép file). */
+  source?: { kind: 'idb' } | { kind: 'saf'; uri: string; mtime: number };
   /** URL stream đã biết sẵn (không dùng cho nhạc trên máy; giữ cho tương thích dữ liệu đã lưu). */
   streamUrl?: string;
 }

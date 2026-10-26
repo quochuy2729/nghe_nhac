@@ -35,6 +35,7 @@ export interface PlatformCaps { folderLink: boolean; noCopy: boolean; eq: boolea
 export interface LibrarySource {
   /** Web: mở <input>; Android: SAF OpenDocumentTree + persist permission. */
   addFolder(): Promise<void>;
+  addFiles?(): Promise<void>;   // chỉ web: chọn file lẻ
   listFolders(): Promise<{ id: string; label: string }[]>;
   removeFolder(id: string): Promise<void>;
   /** Quét tăng dần: chỉ đọc tag file mới/đổi (theo id + mtime). Gọi khi mở app (Android). */
@@ -63,6 +64,7 @@ export interface AudioEngine {
   setEq?(bandsDb: number[]): Promise<void>;   // 5 hoặc 10 band
   setGainDb?(db: number): Promise<void>;      // chuẩn hóa âm lượng theo bài
   setCrossfade?(sec: number): Promise<void>;
+  unlock?(): void;                    // chỉ web: mở khóa <audio> đồng bộ trong handler chạm (iOS)
   on(cb: (e: EngineEvent) => void): () => void;
 }
 

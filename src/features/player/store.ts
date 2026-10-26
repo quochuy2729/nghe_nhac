@@ -3,14 +3,8 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 import { safeStorage } from '@/lib/safeStorage';
 import type { Track } from '@/providers/types';
 import * as Q from './queue';
-import { getAudio, unlockAudio } from './audio';
 import { resolvePlayableUrl } from './resolve';
-import {
-  registerMediaHandlers,
-  setMediaMetadata,
-  setMediaPlaybackState,
-  setMediaPosition,
-} from './mediaSession';
+import { platform } from '@/platform';
 import { createListenTracker, useHistory } from '@/features/recommend/history';
 import { autoplayTracks, similarForTrack } from '@/features/recommend/radio';
 import { useRecommendSettings } from '@/features/recommend/settings';
@@ -56,7 +50,7 @@ export const useQueueStore = create<QueueStore>()(
   ),
 );
 
-/** Trạng thái phát (không lưu) — cập nhật liên tục từ <audio>. */
+/** Trạng thái phát (không lưu) — cập nhật liên tục từ sự kiện của engine. */
 interface PlaybackStore {
   isPlaying: boolean;
   isLoading: boolean;
@@ -77,6 +71,10 @@ export const usePlayback = create<PlaybackStore>()(() => ({
 
 const POS_KEY = 'nn-position';
 let loadToken = 0;
+/** Engine đã nhận bài của `loadedUid` (đã gọi setWindow xong) — thay cho việc kiểm tra `audio.src`. */
+let engineReady = false;
+
+const engine = platform.engine;
 
 function savePosition() {
   const { loadedUid, currentTime } = usePlayback.getState();
@@ -104,16 +102,13 @@ function current(): Q.QueueItem | undefined {
 
 async function loadCurrent(autoplay: boolean, startAt = 0): Promise<void> {
   const item = current();
-  const audio = getAudio();
   const token = ++loadToken;
+  engineReady = false;
   tracker.end();
   if (item) tracker.begin(item.track.id, item.track.durationSec);
   if (!item) {
-    audio.pause();
-    audio.removeAttribute('src');
+    await engine.setWindow([], -1);
     usePlayback.setState({ isPlaying: false, loadedUid: null, currentTime: 0, duration: 0 });
-    setMediaMetadata(undefined);
-    setMediaPlaybackState('none');
     return;
   }
   usePlayback.setState({
@@ -123,13 +118,12 @@ async function loadCurrent(autoplay: boolean, startAt = 0): Promise<void> {
     currentTime: startAt,
     duration: item.track.durationSec,
   });
-  setMediaMetadata(item.track);
   try {
     const url = await resolvePlayableUrl(item.track);
     if (token !== loadToken) return;
-    audio.src = url;
-    if (startAt > 0) audio.currentTime = startAt;
-    if (autoplay) await audio.play();
+    await engine.setWindow([{ track: item.track, url }], 0, startAt);
+    engineReady = true;
+    if (autoplay) await engine.play();
   } catch (err) {
     if (token !== loadToken) return;
     if (autoplay && skipUnavailable()) return;
@@ -179,13 +173,12 @@ function nextStep(auto: boolean): Q.Step {
 
 function applyStep(step: Q.Step) {
   useQueueStore.getState().setQueue(step.state);
-  const audio = getAudio();
   if (step.action === 'restart') {
     tracker.end();
     const t = current()?.track;
     if (t) tracker.begin(t.id, t.durationSec);
-    audio.currentTime = 0;
-    void audio.play().catch(() => undefined);
+    void engine.seek(0);
+    void engine.play().catch(() => undefined);
     return;
   }
   if (step.action === 'play') {
@@ -199,7 +192,7 @@ function applyStep(step: Q.Step) {
 export const player = {
   /** Phát danh sách từ vị trí `index` (gọi trực tiếp trong handler chạm). */
   playTracks(tracks: Track[], index = 0, context = '', opts: { shuffle?: boolean } = {}) {
-    unlockAudio();
+    engine.unlock?.();
     if (!tracks.length) return;
     const { queue } = useQueueStore.getState();
     const shuffle = opts.shuffle ?? queue.shuffle;
@@ -210,25 +203,24 @@ export const player = {
   },
 
   togglePlay() {
-    unlockAudio();
+    engine.unlock?.();
     const item = current();
     if (!item) return;
-    const audio = getAudio();
-    const { loadedUid } = usePlayback.getState();
-    if (loadedUid !== item.uid || !audio.src) {
+    const { loadedUid, isPlaying } = usePlayback.getState();
+    if (loadedUid !== item.uid || !engineReady) {
       void loadCurrent(true, savedPositionFor(item.uid));
       return;
     }
-    if (audio.paused) void audio.play().catch((e) => usePlayback.setState({ error: messageOf(e) }));
-    else audio.pause();
+    if (isPlaying) void engine.pause();
+    else void engine.play().catch((e) => usePlayback.setState({ error: messageOf(e) }));
   },
 
   play() {
-    if (getAudio().paused) player.togglePlay();
+    if (!usePlayback.getState().isPlaying) player.togglePlay();
   },
 
   pause() {
-    getAudio().pause();
+    void engine.pause();
   },
 
   next() {
@@ -242,25 +234,23 @@ export const player = {
   },
 
   previous() {
-    applyStep(Q.prev(useQueueStore.getState().queue, getAudio().currentTime || 0));
+    applyStep(Q.prev(useQueueStore.getState().queue, engine.getPosition()));
   },
 
   seek(sec: number) {
-    const audio = getAudio();
-    const dur = usePlayback.getState().duration || audio.duration || 0;
+    const dur = usePlayback.getState().duration;
     const t = Math.max(0, Math.min(sec, dur || sec));
-    if (!audio.src || usePlayback.getState().loadedUid !== current()?.uid) {
+    if (!engineReady || usePlayback.getState().loadedUid !== current()?.uid) {
       // Chưa nạp bài (vd vừa mở lại app): nạp rồi tua.
       void loadCurrent(false, t);
       return;
     }
-    audio.currentTime = t;
+    void engine.seek(t);
     usePlayback.setState({ currentTime: t });
-    setMediaPosition(dur, t, audio.playbackRate);
   },
 
   seekBy(delta: number) {
-    player.seek((getAudio().currentTime || 0) + delta);
+    player.seek(engine.getPosition() + delta);
   },
 
   toggleShuffle() {
@@ -274,7 +264,7 @@ export const player = {
   },
 
   jumpTo(uid: string) {
-    unlockAudio();
+    engine.unlock?.();
     const { queue, setQueue } = useQueueStore.getState();
     setQueue(Q.jumpTo(queue, uid));
     void loadCurrent(true);
@@ -311,69 +301,53 @@ export const player = {
 
 let initialized = false;
 
-/** Gắn listener cho <audio> + Media Session. Gọi một lần khi app khởi động. */
+/** Nghe sự kiện của engine (phát/dừng, vị trí, hết bài, lỗi, điều khiển từ màn hình khóa). Gọi một lần khi khởi động. */
 export function initPlayer(): void {
   if (initialized) return;
   initialized = true;
-  const audio = getAudio();
 
-  audio.addEventListener('play', () => {
-    usePlayback.setState({ isPlaying: true });
-    setMediaPlaybackState('playing');
-  });
-  audio.addEventListener('pause', () => {
-    usePlayback.setState({ isPlaying: false });
-    setMediaPlaybackState('paused');
-    savePosition();
-  });
-  audio.addEventListener('playing', () => {
-    offlineSkips = 0;
-    usePlayback.setState({ isLoading: false, error: null });
-  });
-  audio.addEventListener('waiting', () => usePlayback.setState({ isLoading: true }));
-  audio.addEventListener('canplay', () => usePlayback.setState({ isLoading: false }));
-  audio.addEventListener('timeupdate', () => {
-    usePlayback.setState({ currentTime: audio.currentTime });
-    tracker.tick(audio.currentTime);
-  });
-  audio.addEventListener('durationchange', () => {
-    if (Number.isFinite(audio.duration) && audio.duration > 0) {
-      usePlayback.setState({ duration: audio.duration });
-      tracker.setDuration(audio.duration);
-      setMediaPosition(audio.duration, audio.currentTime, audio.playbackRate);
+  engine.on((e) => {
+    switch (e.type) {
+      case 'state': {
+        usePlayback.setState({ isPlaying: e.playing, isLoading: e.buffering });
+        if (e.playing && !e.buffering) {
+          offlineSkips = 0;
+          usePlayback.setState({ error: null });
+        }
+        if (!e.playing) savePosition();
+        break;
+      }
+      case 'position': {
+        usePlayback.setState({ currentTime: e.sec });
+        if (e.durationSec > 0) usePlayback.setState({ duration: e.durationSec });
+        tracker.tick(e.sec);
+        if (e.durationSec > 0) tracker.setDuration(e.durationSec);
+        break;
+      }
+      case 'ended':
+        tracker.end();
+        applyStep(nextStep(true));
+        break;
+      case 'error':
+        usePlayback.setState({ isPlaying: false, isLoading: false, error: e.message });
+        break;
+      case 'remote':
+        if (e.action === 'play') player.play();
+        else if (e.action === 'pause') player.pause();
+        else if (e.action === 'prev') player.previous();
+        else player.next();
+        break;
+      case 'trackChanged':
+        // Chỉ engine native mới tự chuyển bài (G3); web thì store là chủ hàng đợi.
+        break;
     }
-  });
-  audio.addEventListener('seeked', () => {
-    setMediaPosition(audio.duration, audio.currentTime, audio.playbackRate);
-  });
-  audio.addEventListener('ended', () => {
-    tracker.end();
-    applyStep(nextStep(true));
-  });
-  audio.addEventListener('error', () => {
-    // Bỏ qua lỗi khi src rỗng (vd lúc reset).
-    if (!audio.currentSrc || audio.currentSrc.startsWith('data:')) return;
-    usePlayback.setState({ isPlaying: false, isLoading: false, error: messageOf(audio.error) });
-  });
-
-  registerMediaHandlers({
-    play: () => player.play(),
-    pause: () => player.pause(),
-    previous: () => player.previous(),
-    next: () => player.next(),
-    seekTo: (t) => player.seek(t),
-    seekBy: (d) => player.seekBy(d),
   });
 
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') savePosition();
   });
-  window.addEventListener('pointerdown', unlockAudio, { once: true, capture: true });
 
-  // Khôi phục metadata lock screen + thời lượng cho bài cuối cùng.
+  // Khôi phục thời lượng + vị trí cho bài cuối cùng.
   const item = current();
-  if (item) {
-    usePlayback.setState({ duration: item.track.durationSec, currentTime: savedPositionFor(item.uid) });
-    setMediaMetadata(item.track);
-  }
+  if (item) usePlayback.setState({ duration: item.track.durationSec, currentTime: savedPositionFor(item.uid) });
 }

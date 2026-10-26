@@ -7,19 +7,17 @@ import { PlaylistPicker } from '@/features/library/PlaylistPicker';
 import { initLibrary } from '@/features/library/store';
 import { TrackMenu } from '@/features/library/TrackMenu';
 import { initPlayer } from '@/features/player/store';
+import { loadHistory } from '@/features/recommend/history';
 import { loadFolder } from '@/providers/folder';
-import { DownloadsPage } from '@/pages/DownloadsPage';
-import { HomePage } from '@/pages/HomePage';
-import { LibraryPage } from '@/pages/LibraryPage';
-import { LikedPage } from '@/pages/LikedPage';
-import { LyricsPage } from '@/pages/LyricsPage';
-import { PlayerPage } from '@/pages/PlayerPage';
-import { PlaylistPage } from '@/pages/PlaylistPage';
-import { SearchPage } from '@/pages/SearchPage';
-import { SettingsPage } from '@/pages/SettingsPage';
 import { CloseOverlaysOnNavigate } from './CloseOverlaysOnNavigate';
 import { ErrorBoundary } from './ErrorBoundary';
 import { Layout } from './Layout';
+import { routes, type AppRoute } from './routes';
+
+function renderRoute(r: AppRoute) {
+  const C = r.Component;
+  return r.index ? <Route key="index" index element={<C />} /> : <Route key={r.path} path={r.path} element={<C />} />;
+}
 
 // HashRouter: không cần cấu hình rewrite phía server, chạy ổn cả khi cài PWA.
 export function App() {
@@ -29,23 +27,15 @@ export function App() {
     initLibrary();
     initDownloads();
     void loadFolder();
+    void loadHistory();
   }, []);
 
   return (
     <HashRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <ErrorBoundary>
         <Routes>
-          <Route element={<Layout />}>
-            <Route index element={<HomePage />} />
-            <Route path="search" element={<SearchPage />} />
-            <Route path="library" element={<LibraryPage />} />
-            <Route path="library/liked" element={<LikedPage />} />
-            <Route path="library/downloads" element={<DownloadsPage />} />
-            <Route path="library/playlist/:id" element={<PlaylistPage />} />
-            <Route path="settings" element={<SettingsPage />} />
-          </Route>
-          <Route path="player" element={<PlayerPage />} />
-          <Route path="lyrics" element={<LyricsPage />} />
+          <Route element={<Layout />}>{routes.filter((r) => r.layout).map(renderRoute)}</Route>
+          {routes.filter((r) => !r.layout).map(renderRoute)}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         <CloseOverlaysOnNavigate />

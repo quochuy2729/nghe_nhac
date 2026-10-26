@@ -1,6 +1,7 @@
 import { fakeTrack } from '@/test/fixtures';
 import { getAudioBlob, getLyricsRecord, getTrack, putAudio, putTrack, resetDBForTests } from '@/lib/db';
 import {
+  folderOf,
   folderProvider,
   guessFromFileName,
   importFiles,
@@ -104,6 +105,22 @@ describe('importFiles', () => {
     expect(again.existing).toBe(1);
     await loadFolder();
     expect(useFolder.getState().tracks).toHaveLength(1);
+  });
+});
+
+describe('track.folder / source', () => {
+  it('lấy thư mục từ webkitRelativePath; chọn file lẻ thì không có', async () => {
+    stubAudioProbe();
+    const inFolder = new File([new Uint8Array([1])], 'a.mp3', { type: 'audio/mpeg' });
+    Object.defineProperty(inFolder, 'webkitRelativePath', { value: 'Nhạc/Pop/a.mp3' });
+    const loose = new File([new Uint8Array([2])], 'b.mp3', { type: 'audio/mpeg' });
+    const r = await importFiles([inFolder, loose]);
+    const a = r.added.find((t) => t.title === 'a')!;
+    const b = r.added.find((t) => t.title === 'b')!;
+    expect(folderOf(inFolder)).toBe('Nhạc/Pop');
+    expect(a).toMatchObject({ folder: 'Nhạc/Pop', source: { kind: 'idb' } });
+    expect(b.folder).toBeUndefined();
+    expect(b.source).toEqual({ kind: 'idb' });
   });
 });
 

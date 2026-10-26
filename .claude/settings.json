@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(./dist/**)",
+      "Read(./package-lock.json)",
+      "Read(./docs/history/**)",
+      "Read(./android/app/build/**)",
+      "Read(./android/.gradle/**)"
+    ]
+  }
+}

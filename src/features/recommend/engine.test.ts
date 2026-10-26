@@ -8,7 +8,7 @@ const HOUR = 3_600_000;
 const DAY = 24 * HOUR;
 
 const t = (n: number, extra: Partial<Track> = {}): Track => fakeTrack(n, { artist: `Ca sĩ ${n}`, ...extra });
-const ev = (id: string, ageMs: number, kind: PlayEvent['kind'] = 'complete'): PlayEvent => ({ id, t: NOW - ageMs, sec: 200, kind });
+const ev = (trackId: string, ageMs: number, kind: PlayEvent['kind'] = 'complete'): PlayEvent => ({ id: `u${trackId}${ageMs}`, trackId, t: NOW - ageMs, sec: 200, dur: 200, kind, device: 'iphone' });
 
 const sig = (library: Track[], events: PlayEvent[] = [], liked: string[] = []): Signals => ({
   library,

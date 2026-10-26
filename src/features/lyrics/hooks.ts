@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Track } from '@/providers/types';
-import { getAudio } from '@/features/player/audio';
+import { platform } from '@/platform';
 import { activeLineIndex, type LrcLine } from './lrc';
 import { loadLyrics, type Lyrics } from './service';
 
@@ -31,17 +31,16 @@ export function useLyrics(track: Track | undefined) {
   };
 }
 
-/** Dòng đang hát: đọc audio.currentTime mỗi frame (độ trễ < 1 frame ≈ 16ms). */
+/** Dòng đang hát: đọc vị trí phát từ engine mỗi frame (độ trễ < 1 frame ≈ 16ms). */
 export function useActiveLine(lines: readonly LrcLine[]): number {
   const [active, setActive] = useState(-1);
   const last = useRef(-1);
 
   useEffect(() => {
     if (!lines.length) return;
-    const audio = getAudio();
     let raf = 0;
     const tick = () => {
-      const i = activeLineIndex(lines, audio.currentTime * 1000);
+      const i = activeLineIndex(lines, platform.engine.getPosition() * 1000);
       if (i !== last.current) {
         last.current = i;
         setActive(i);

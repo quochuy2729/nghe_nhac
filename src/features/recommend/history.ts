@@ -1,26 +1,21 @@
 /**
- * Lịch sử nghe (chỉ lưu trên máy này). Mỗi lần nghe một bài được phân loại:
- * nghe gần hết = thích, bỏ qua sớm = không thích. Engine dùng để đoán gu hiện tại.
+ * Lịch sử nghe, lưu trong IndexedDB (store `events`, chỉ trên máy này; G4 sẽ đồng bộ). Mỗi lần nghe được
+ * phân loại: nghe gần hết = thích, bỏ qua sớm = không thích. Engine dùng để đoán gu hiện tại.
  */
 import { create } from 'zustand';
-import { createJSONStorage, persist } from 'zustand/middleware';
-import { safeStorage } from '@/lib/safeStorage';
+import { clearEvents, deleteEvents, getAllEvents, putEvents, type PlayEvent, type StoredPlayEvent } from '@/lib/db';
+import { uuid, uuidFrom } from '@/lib/id';
+import { platform } from '@/platform';
 
-export type PlayKind = 'complete' | 'partial' | 'skip';
-
-export interface PlayEvent {
-  /** id bài (`folder:…`) */
-  id: string;
-  /** thời điểm kết thúc lần nghe (ms) */
-  t: number;
-  /** số giây thực sự đã nghe */
-  sec: number;
-  kind: PlayKind;
-}
+export type { PlayEvent };
+export type PlayKind = PlayEvent['kind'];
 
 /** Dưới ngưỡng này coi là bấm nhầm, không ghi lại. */
 export const MIN_LISTEN_SEC = 5;
-export const MAX_EVENTS = 3000;
+/** Giữ tối đa chừng này lượt nghe trên máy. */
+export const MAX_EVENTS = 20_000;
+
+const LEGACY_KEY = 'nn-history';
 
 /**
  * Phân loại một lần nghe. `null` = quá ngắn, bỏ qua.
@@ -37,26 +32,110 @@ export function classifyPlay(playedSec: number, durationSec: number): PlayKind |
   return playedSec >= 120 ? 'complete' : playedSec < 30 ? 'skip' : 'partial';
 }
 
+/** Giữ `max` lượt mới nhất; trả cả phần bị bỏ để xóa khỏi IndexedDB. */
+export function capEvents<T extends { t: number }>(events: readonly T[], max: number): { kept: T[]; dropped: T[] } {
+  if (events.length <= max) return { kept: events.slice(), dropped: [] };
+  const cut = events.length - max;
+  return { kept: events.slice(cut), dropped: events.slice(0, cut) };
+}
+
+function currentDevice(): PlayEvent['device'] {
+  return platform.id === 'android' ? 'poco' : 'iphone';
+}
+
 interface HistoryState {
-  events: PlayEvent[];
-  record: (id: string, playedSec: number, durationSec: number, now?: number) => void;
+  events: StoredPlayEvent[];
+  record: (trackId: string, playedSec: number, durationSec: number, now?: number) => void;
   clear: () => void;
 }
 
-export const useHistory = create<HistoryState>()(
-  persist(
-    (set) => ({
-      events: [],
-      record: (id, playedSec, durationSec, now = Date.now()) => {
-        const kind = classifyPlay(playedSec, durationSec);
-        if (!kind) return;
-        set((s) => ({ events: [...s.events, { id, t: now, sec: Math.round(playedSec), kind }].slice(-MAX_EVENTS) }));
-      },
-      clear: () => set({ events: [] }),
-    }),
-    { name: 'nn-history', version: 1, storage: createJSONStorage(() => safeStorage), partialize: (s) => ({ events: s.events }) as HistoryState },
-  ),
-);
+const sortByTime = (a: { t: number }, b: { t: number }) => a.t - b.t;
+
+export const useHistory = create<HistoryState>()((set, get) => ({
+  events: [],
+  record: (trackId, playedSec, durationSec, now = Date.now()) => {
+    const kind = classifyPlay(playedSec, durationSec);
+    if (!kind) return;
+    const ev: StoredPlayEvent = {
+      id: uuid(),
+      trackId,
+      t: now,
+      sec: Math.round(playedSec),
+      dur: Math.round(durationSec),
+      kind,
+      device: currentDevice(),
+      synced: 0,
+    };
+    const { kept, dropped } = capEvents([...get().events, ev], MAX_EVENTS);
+    set({ events: kept });
+    void putEvents([ev]).catch(() => undefined);
+    if (dropped.length) void deleteEvents(dropped.map((d) => d.id)).catch(() => undefined);
+  },
+  clear: () => {
+    set({ events: [] });
+    void clearEvents().catch(() => undefined);
+  },
+}));
+
+/**
+ * Chuyển lịch sử cũ từ localStorage (`nn-history`) sang IndexedDB rồi xóa key cũ.
+ * id sinh xác định từ nội dung lượt nghe nên nếu bị ngắt giữa chừng và chạy lại cũng không nhân đôi.
+ */
+export async function migrateLegacyHistory(): Promise<number> {
+  let raw: string | null = null;
+  try {
+    raw = localStorage.getItem(LEGACY_KEY);
+  } catch {
+    return 0;
+  }
+  if (!raw) return 0;
+
+  let old: Array<{ id?: unknown; t?: unknown; sec?: unknown; kind?: unknown }> = [];
+  try {
+    const parsed = JSON.parse(raw) as { state?: { events?: unknown } };
+    if (Array.isArray(parsed?.state?.events)) old = parsed.state.events;
+  } catch {
+    // dữ liệu hỏng: bỏ, vẫn xóa key để không thử lại mãi
+  }
+
+  const device = currentDevice();
+  const rows: StoredPlayEvent[] = [];
+  for (const e of old) {
+    if (typeof e.id !== 'string' || typeof e.t !== 'number' || typeof e.sec !== 'number') continue;
+    if (e.kind !== 'complete' && e.kind !== 'partial' && e.kind !== 'skip') continue;
+    rows.push({
+      id: uuidFrom(`${e.id}|${e.t}|${e.sec}|${e.kind}`),
+      trackId: e.id,
+      t: e.t,
+      sec: e.sec,
+      dur: 0,
+      kind: e.kind,
+      device,
+      synced: 0,
+    });
+  }
+  if (rows.length) await putEvents(rows);
+  try {
+    localStorage.removeItem(LEGACY_KEY);
+  } catch {
+    // ignore
+  }
+  return rows.length;
+}
+
+/** Nạp lịch sử vào bộ nhớ khi mở app (đã gồm migrate). Các lượt ghi trong lúc đang nạp được giữ lại. */
+export async function loadHistory(): Promise<void> {
+  try {
+    await migrateLegacyHistory();
+    const stored = await getAllEvents();
+    const byId = new Map<string, StoredPlayEvent>(stored.map((e) => [e.id, e]));
+    for (const e of useHistory.getState().events) byId.set(e.id, e);
+    const { kept } = capEvents([...byId.values()].sort(sortByTime), MAX_EVENTS);
+    useHistory.setState({ events: kept });
+  } catch {
+    // IndexedDB không dùng được: vẫn chạy với lịch sử trong bộ nhớ
+  }
+}
 
 /**
  * Theo dõi thời gian nghe thực của bài đang phát (bỏ qua đoạn tua: chỉ cộng khi
