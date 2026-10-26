@@ -234,11 +234,11 @@ describe('SafLibrarySource.rescan', () => {
     expect(await src.listFolders()).toEqual([{ id: 'treeA', label: 'Music' }]);
   });
 
-  it('resolve trả URL WebView của content:// URI', async () => {
+  it('resolve trả nguyên content:// URI cho Media3', async () => {
     plugin.add('treeA', '', 'a.mp3', 100);
     await src.rescan();
     const t = (await getTrack(idOf('a.mp3', 100)))!;
-    expect(await src.resolve(t)).toBe('https://localhost/x/content://treeA//a.mp3');
+    expect(await src.resolve(t)).toBe('content://treeA//a.mp3');
   });
 });
 

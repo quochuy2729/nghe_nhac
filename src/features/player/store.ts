@@ -8,9 +8,17 @@ import { platform } from '@/platform';
 import { createListenTracker, useHistory } from '@/features/recommend/history';
 import { autoplayTracks, similarForTrack } from '@/features/recommend/radio';
 import { useRecommendSettings } from '@/features/recommend/settings';
+import { library, useLibrary } from '@/features/library/store';
+import { itemsAfter, needsTopUp, upcomingItems, WINDOW_AHEAD } from './window';
+
+const engine = platform.engine;
+/** Engine native tự chuyển bài trong "cửa sổ" và tự ghi lượt nghe → JS không đo thời gian nghe nữa. */
+const managed = engine.managesQueue === true;
 
 /** Ghi lại mỗi lần nghe (nghe hết / bỏ qua) để gợi ý theo gu. */
-const tracker = createListenTracker((id, sec, dur) => useHistory.getState().record(id, sec, dur));
+const tracker = managed
+  ? { begin: () => undefined, tick: () => undefined, setDuration: () => undefined, end: () => undefined }
+  : createListenTracker((id, sec, dur) => useHistory.getState().record(id, sec, dur));
 
 const MAX_INLINE_ART = 4096;
 
@@ -74,7 +82,28 @@ let loadToken = 0;
 /** Engine đã nhận bài của `loadedUid` (đã gọi setWindow xong) — thay cho việc kiểm tra `audio.src`. */
 let engineReady = false;
 
-const engine = platform.engine;
+/** uid các bài engine native đang giữ (phản chiếu playlist native) + vị trí bài đang phát trong đó. */
+let windowUids: string[] = [];
+let windowIdx = -1;
+
+interface Resolved {
+  uid: string;
+  track: Track;
+  url: string;
+}
+
+/** Bài không có trên máy (mất quyền, đã xóa) thì bỏ khỏi cửa sổ thay vì làm hỏng cả lô. */
+async function resolveItems(items: Q.QueueItem[]): Promise<Resolved[]> {
+  const out: Resolved[] = [];
+  for (const it of items) {
+    try {
+      out.push({ uid: it.uid, track: it.track, url: await resolvePlayableUrl(it.track) });
+    } catch {
+      // bỏ qua
+    }
+  }
+  return out;
+}
 
 function savePosition() {
   const { loadedUid, currentTime } = usePlayback.getState();
@@ -103,10 +132,14 @@ function current(): Q.QueueItem | undefined {
 async function loadCurrent(autoplay: boolean, startAt = 0): Promise<void> {
   const item = current();
   const token = ++loadToken;
+  // Bài đã nằm sẵn trong cửa sổ native → nhảy thẳng, không dựng lại playlist (không bị ngắt tiếng).
+  const jumpIdx = item && managed && engineReady && startAt === 0 ? windowUids.indexOf(item.uid) : -1;
   engineReady = false;
   tracker.end();
   if (item) tracker.begin(item.track.id, item.track.durationSec);
   if (!item) {
+    windowUids = [];
+    windowIdx = -1;
     await engine.setWindow([], -1);
     usePlayback.setState({ isPlaying: false, loadedUid: null, currentTime: 0, duration: 0 });
     return;
@@ -119,10 +152,21 @@ async function loadCurrent(autoplay: boolean, startAt = 0): Promise<void> {
     duration: item.track.durationSec,
   });
   try {
-    const url = await resolvePlayableUrl(item.track);
+    if (jumpIdx >= 0) {
+      windowIdx = jumpIdx;
+      await engine.skipTo(jumpIdx);
+    } else {
+      const first = await resolvePlayableUrl(item.track);
+      const rest = managed ? await resolveItems(upcomingItems(useQueueStore.getState().queue)) : [];
+      if (token !== loadToken) return;
+      // Cập nhật bản đồ TRƯỚC khi gọi native: sự kiện trackChanged có thể tới ngay sau setWindow.
+      windowUids = [item.uid, ...rest.map((r) => r.uid)];
+      windowIdx = 0;
+      await engine.setWindow([{ track: item.track, url: first }, ...rest], 0, startAt);
+    }
     if (token !== loadToken) return;
-    await engine.setWindow([{ track: item.track, url }], 0, startAt);
     engineReady = true;
+    syncLiked();
     if (autoplay) await engine.play();
   } catch (err) {
     if (token !== loadToken) return;
@@ -134,6 +178,55 @@ async function loadCurrent(autoplay: boolean, startAt = 0): Promise<void> {
       usePlayback.setState({ error: messageOf(err) });
     }
     usePlayback.setState({ isPlaying: false, isLoading: false });
+  }
+}
+
+/** Báo native trạng thái thích của bài đang phát (nút ♥ trên notification). */
+function syncLiked() {
+  const t = current()?.track;
+  if (t) void engine.setLiked?.(library.isLiked(t.id)).catch(() => undefined);
+}
+
+/** Hàng đợi vừa đổi (phát tiếp theo, xóa, sắp xếp, xáo, lặp): cập nhật các bài sau bài đang phát ở native. */
+async function resyncUpcoming(): Promise<void> {
+  if (!managed || !engineReady) return;
+  const cur = current();
+  const idx = windowIdx;
+  if (!cur || windowUids[idx] !== cur.uid) return;
+  const up = await resolveItems(upcomingItems(useQueueStore.getState().queue));
+  if (windowIdx !== idx || windowUids[idx] !== cur.uid) return; // trong lúc chờ đã đổi bài
+  windowUids = [...windowUids.slice(0, idx + 1), ...up.map((u) => u.uid)];
+  await engine.setUpcoming?.(up);
+}
+
+let toppingUp = false;
+
+/** Còn ≤ 5 bài trong cửa sổ thì đẩy thêm (hết hàng đợi thì nối bài tương tự nếu bật "tự phát"). */
+async function topUpWindow(): Promise<void> {
+  if (!managed || toppingUp) return;
+  let queue = useQueueStore.getState().queue;
+  if (!needsTopUp(windowUids.length, windowIdx, queue.repeat)) return;
+  toppingUp = true;
+  try {
+    const need = WINDOW_AHEAD - (windowUids.length - 1 - windowIdx);
+    const lastUid = windowUids[windowUids.length - 1];
+    let more = itemsAfter(queue, lastUid, need);
+    if (!more.length && useRecommendSettings.getState().autoplay) {
+      const seed = Q.currentItem(queue)?.track;
+      const extra = seed ? autoplayTracks(seed, queue.items.map((it) => it.track.id)) : [];
+      if (extra.length) {
+        queue = Q.enqueue(queue, extra);
+        useQueueStore.getState().setQueue(queue);
+        more = itemsAfter(queue, lastUid, need);
+      }
+    }
+    if (!more.length) return;
+    const resolved = await resolveItems(more);
+    if (windowUids[windowUids.length - 1] !== lastUid) return; // cửa sổ đã bị dựng lại
+    windowUids = [...windowUids, ...resolved.map((r) => r.uid)];
+    await engine.appendWindow?.(resolved);
+  } finally {
+    toppingUp = false;
   }
 }
 
@@ -256,11 +349,13 @@ export const player = {
   toggleShuffle() {
     const { queue, setQueue } = useQueueStore.getState();
     setQueue(Q.setShuffle(queue, !queue.shuffle));
+    void resyncUpcoming();
   },
 
   cycleRepeat() {
     const { queue, setQueue } = useQueueStore.getState();
     setQueue({ ...queue, repeat: Q.nextRepeatMode(queue.repeat) });
+    void resyncUpcoming();
   },
 
   jumpTo(uid: string) {
@@ -275,6 +370,7 @@ export const player = {
     const wasEmpty = queue.items.length === 0;
     setQueue(Q.playNext(queue, tracks));
     if (wasEmpty) void loadCurrent(false);
+    else void resyncUpcoming();
   },
 
   enqueue(tracks: Track[]) {
@@ -282,16 +378,19 @@ export const player = {
     const wasEmpty = queue.items.length === 0;
     setQueue(Q.enqueue(queue, tracks));
     if (wasEmpty) void loadCurrent(false);
+    else void resyncUpcoming();
   },
 
   remove(uid: string) {
     const { queue, setQueue } = useQueueStore.getState();
     setQueue(Q.removeItem(queue, uid));
+    void resyncUpcoming();
   },
 
   move(from: number, to: number) {
     const { queue, setQueue } = useQueueStore.getState();
     setQueue(Q.moveItem(queue, from, to));
+    void resyncUpcoming();
   },
 
   clearError() {
@@ -335,10 +434,28 @@ export function initPlayer(): void {
         if (e.action === 'play') player.play();
         else if (e.action === 'pause') player.pause();
         else if (e.action === 'prev') player.previous();
-        else player.next();
+        else if (e.action === 'toggleLike') {
+          const t = current()?.track;
+          if (t) void library.toggleLike(t);
+        } else player.next();
         break;
-      case 'trackChanged':
-        // Chỉ engine native mới tự chuyển bài (G3); web thì store là chủ hàng đợi.
+      case 'trackChanged': {
+        // Chỉ engine native tự chuyển bài (khi tắt màn hình, nút tai nghe, notification); web thì store là chủ hàng đợi.
+        if (!managed) break;
+        const uid = windowUids[e.index];
+        if (!uid) break;
+        windowIdx = e.index;
+        const { queue, setQueue } = useQueueStore.getState();
+        if (Q.currentItem(queue)?.uid !== uid && queue.items.some((it) => it.uid === uid)) setQueue(Q.jumpTo(queue, uid));
+        const it = current();
+        if (it) usePlayback.setState({ loadedUid: it.uid, duration: it.track.durationSec, currentTime: 0, error: null });
+        syncLiked();
+        void topUpWindow();
+        break;
+      }
+      case 'history':
+        // Lượt nghe do native đo (kể cả lúc app ở nền): ghi với đúng thời điểm kết thúc.
+        for (const h of e.events) useHistory.getState().record(h.trackId, h.playedSec, h.durationSec, h.endedAt);
         break;
     }
   });
@@ -346,6 +463,7 @@ export function initPlayer(): void {
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') savePosition();
   });
+  if (managed) useLibrary.subscribe(syncLiked);
 
   // Khôi phục thời lượng + vị trí cho bài cuối cùng.
   const item = current();

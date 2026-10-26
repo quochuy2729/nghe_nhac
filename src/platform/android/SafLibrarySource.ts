@@ -178,7 +178,8 @@ export class SafLibrarySource implements LibrarySource {
 
   resolve(track: Track): Promise<string> {
     if (track.source?.kind !== 'saf') return Promise.reject(new Error('Bài này không nằm trong thư mục đã liên kết.'));
-    return Promise.resolve(this.deps.toUrl(track.source.uri));
+    // Media3 đọc thẳng content:// (không qua WebView nên không cần convertFileSrc).
+    return Promise.resolve(track.source.uri);
   }
 
   async artwork(track: Track): Promise<string | null> {

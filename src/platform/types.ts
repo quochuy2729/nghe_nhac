@@ -36,12 +36,25 @@ export interface LibrarySource {
 export type EngineEvent =
   | { type: 'state'; playing: boolean; buffering: boolean }
   | { type: 'position'; sec: number; durationSec: number } // ~4 lần/giây khi app mở
-  | { type: 'trackChanged'; index: number; reason: 'auto' | 'user' | 'error' }
+  | { type: 'trackChanged'; index: number; reason: 'auto' | 'user' | 'error'; trackId?: string }
   | { type: 'ended' } // hết hàng đợi đã đẩy xuống
   | { type: 'error'; trackId: string; message: string }
-  | { type: 'remote'; action: 'next' | 'prev' | 'play' | 'pause' };
+  | { type: 'remote'; action: 'next' | 'prev' | 'play' | 'pause' | 'toggleLike' }
+  /** Lượt nghe do native ghi (kể cả lúc app ở nền), lấy ra khi app mở/quay lại. */
+  | { type: 'history'; events: { trackId: string; playedSec: number; durationSec: number; endedAt: number }[] };
 
 export interface AudioEngine {
+  /**
+   * true = engine tự chuyển bài trong "cửa sổ" (native, chạy cả khi tắt màn hình); store phải đồng bộ hàng đợi
+   * theo `trackChanged`, nạp thêm bằng `appendWindow` và tự ghi lịch sử từ `history` thay vì đo thời gian nghe ở JS.
+   */
+  readonly managesQueue?: boolean;
+  /** Thêm bài vào cuối cửa sổ mà không làm gián đoạn bài đang phát. */
+  appendWindow?(items: { track: Track; url: string }[]): Promise<void>;
+  /** Thay các bài SAU bài đang phát (hàng đợi vừa đổi). */
+  setUpcoming?(items: { track: Track; url: string }[]): Promise<void>;
+  /** Trạng thái thích của bài đang phát (nút thích trên notification). */
+  setLiked?(liked: boolean): Promise<void>;
   /**
    * JS là chủ hàng đợi; đẩy xuống "cửa sổ" bài hiện tại + tối đa 20 bài kế. Native tự chuyển bài khi màn hình tắt.
    * Cửa sổ rỗng = dừng và bỏ bài hiện tại.

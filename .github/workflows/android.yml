@@ -61,7 +61,14 @@ jobs:
           VERSION_NAME: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('0.0.{0}', github.run_number) }}
         run: |
           chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon
+          set -o pipefail
+          ./gradlew assembleRelease --no-daemon --console=plain 2>&1 | tee "$RUNNER_TEMP/gradle.log"
+
+      # Log Actions cần đăng nhập mới đọc được; annotation thì xem công khai được → in lỗi biên dịch ra đó.
+      - name: Surface Gradle errors
+        if: failure()
+        run: |
+          grep -E "^e: |error:|What went wrong|Execution failed|FAILED|Caused by|^> " "$RUNNER_TEMP/gradle.log" | head -40 | while IFS= read -r l; do echo "::error::${l:0:900}"; done
 
       - uses: actions/upload-artifact@v4
         with:
