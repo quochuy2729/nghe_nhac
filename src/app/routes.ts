@@ -9,6 +9,7 @@ import { LyricsPage } from '@/pages/LyricsPage';
 import { PlayerPage } from '@/pages/PlayerPage';
 import { PlaylistPage } from '@/pages/PlaylistPage';
 import { SearchPage } from '@/pages/SearchPage';
+import { StatsPage } from '@/pages/StatsPage';
 import { SettingsPage } from '@/pages/SettingsPage';
 import { SmartEditPage } from '@/pages/SmartEditPage';
 import { SmartPlaylistsPage } from '@/pages/SmartPlaylistsPage';
@@ -31,6 +32,7 @@ export const routes: AppRoute[] = [
   { path: 'library/downloads', Component: DownloadsPage, layout: true },
   { path: 'library/browse', Component: BrowsePage, layout: true },
   { path: 'library/group/:kind/:key', Component: GroupPage, layout: true },
+  { path: 'library/stats', Component: StatsPage, layout: true },
   { path: 'library/smart', Component: SmartPlaylistsPage, layout: true },
   { path: 'library/smart/:id', Component: SmartEditPage, layout: true },
   { path: 'library/playlist/:id', Component: PlaylistPage, layout: true },

@@ -3,6 +3,7 @@ import type { Platform } from '../types';
 import { NativeAudioEngine } from './NativeAudioEngine';
 import { NativeDecoder } from './NativeDecoder';
 import { SafLibrarySource } from './SafLibrarySource';
+import { shareImageAndroid } from './share';
 
 /**
  * Android (Capacitor): đọc thẳng thư mục qua SAF (G2), phát bằng Media3 trong PlaybackService (G3),
@@ -25,6 +26,7 @@ export function createAndroidPlatform(): Platform {
       sleepTimer: true,
       analyze: true,
     },
+    shareImage: shareImageAndroid,
     library,
     engine: new NativeAudioEngine(),
     decoder: new NativeDecoder(),

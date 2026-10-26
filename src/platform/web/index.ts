@@ -1,4 +1,5 @@
 import type { Platform } from '../types';
+import { shareImageWeb } from './share';
 import { WebAudioEngine } from './WebAudioEngine';
 import { WebDecoder } from './WebDecoder';
 import { WebImportSource } from './WebImportSource';
@@ -18,6 +19,7 @@ export function createWebPlatform(): Platform {
       sleepTimer: true,
       analyze: true,
     },
+    shareImage: shareImageWeb,
     library: new WebImportSource(),
     engine: new WebAudioEngine(),
     decoder: new WebDecoder(),

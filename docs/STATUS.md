@@ -11,7 +11,7 @@ Player đầy đủ + Media Session, lyrics (LRC/LRCLIB), nạp nhạc vào IDB 
 - [x] G5 Phân tích âm thanh + gợi ý thông minh
 - [x] G6 Trải nghiệm nghe
 - [x] G7 Quản lý thư viện
-- [ ] G8 Thống kê / Wrapped
+- [x] G8 Thống kê / Wrapped
 - [ ] G9 Hoàn thiện + QA
 
 ## G1 (đã xong)
@@ -47,7 +47,13 @@ Player đầy đủ + Media Session, lyrics (LRC/LRCLIB), nạp nhạc vào IDB 
 - Thư viện nhạc (`/library/browse`): tab Bài hát · Album · Nghệ sĩ · Thể loại · Thư mục · Trùng bài, sắp xếp + lọc không dấu, chọn nhiều bài (playlist/hàng đợi/thích/sửa tag); `VirtualList` (dòng cao cố định) nên 5000 bài chỉ dựng vài chục dòng DOM.
 - Sửa tag = override (`overrideActions`: gộp, khôi phục, ảnh bìa 300px), đồng bộ `track_overrides`, `loadFolder` áp override. Playlist thông minh: `smart/evaluate` (mọi field/op), trình tạo luật + xem trước + 3 mẫu, đồng bộ `smart_playlists`.
 
+## G8 (đã xong)
+- `features/stats/compute` (thuần, giờ VN UTC+7): kỳ Tuần/Tháng/Năm/Tùy chọn, tổng phút, top 10 bài/nghệ sĩ/thể loại/album, tỷ lệ bỏ qua, heatmap giờ × thứ, chuỗi ngày, mood, nghệ sĩ mới, so kỳ trước, lọc máy; 20 000 lượt < 200 ms.
+- Trang Thống kê (`/library/stats`, biểu đồ SVG tự viết), Wrapped (thẻ vuốt ngang, PNG 1080×1920, `platform.shareImage`: Web Share/tải về ở web, `@capacitor/share` + `filesystem` ở Android), nút tạo playlist "Top 50 năm YYYY".
+
 ## Câu hỏi mở
+- G8: thêm 2 plugin chính thức `@capacitor/share`, `@capacitor/filesystem` (cần `cap sync` — `build:android` đã gọi). Mood trong thống kê chỉ có cho bài đã phân tích.
+- G8: "nghệ sĩ mới" xét lần đầu nghe trong toàn bộ lịch sử còn lưu (tối đa 20 000 lượt gần nhất); lịch sử bị cắt cũ có thể làm nghệ sĩ cũ trông như mới.
 - G7: "Bài trùng" chỉ liệt kê và cho nghe thử; không có nút xóa file (app không ghi vào thư mục nhạc). Album trùng tên của hai nghệ sĩ được tách và gắn tên nghệ sĩ.
 - G7: bài đang nằm sẵn trong hàng đợi đã lưu giữ tag cũ cho tới khi phát lại từ danh sách mới.
 - G6: crossfade dùng player phụ phát nốt bài cũ từ vị trí hiện tại nên có thể lệch vài chục ms; lượt nghe của bài cũ được ghi sớm bằng thời lượng crossfade. Chưa nghe thử trên máy thật.
@@ -67,6 +73,7 @@ Player đầy đủ + Media Session, lyrics (LRC/LRCLIB), nạp nhạc vào IDB 
 - `platform.caps` ở web đang để `false` hết cho tới khi tính năng có thật (speed/sleepTimer ở G6, analyze ở G5).
 
 ## QA thủ công cần chủ repo làm
+- [ ] G8: mở Thống kê sau vài ngày nghe: số phút/top khớp cảm nhận, heatmap đúng giờ; thử chuỗi ngày qua nửa đêm; Wrapped vuốt các thẻ, "Chia sẻ ảnh" ra được ảnh (Android: hộp chia sẻ; iPhone: Lưu ảnh/Chia sẻ).
 - [ ] G6: so âm lượng hai bài master to/nhỏ khi bật chuẩn hóa (cần bài đã phân tích); crossfade 6 giây không bị click/khoảng lặng; cùng album liền nhau không crossfade.
 - [ ] G6: hẹn giờ 5 phút khi tắt màn hình dừng đúng giờ (Poco), giảm dần 10 giây cuối; "Hết bài này"; trên iPhone nhạc dừng đúng giờ.
 - [ ] G6: EQ Bass/Vocal nghe khác rõ; tốc độ 1.5× giữ/không giữ cao độ; mở lại file podcast > 10 phút phát tiếp từ chỗ cũ.

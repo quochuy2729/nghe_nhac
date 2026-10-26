@@ -104,6 +104,15 @@ export function LibraryPage() {
           </Link>
         </li>
         <li>
+          <Link to="/library/stats" className="flex min-h-[72px] items-center gap-3 px-4 py-2 active:bg-white/5">
+            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded bg-gradient-to-br from-amber-600 to-rose-400 text-2xl">📊</span>
+            <span className="min-w-0">
+              <span className="block truncate font-semibold">Thống kê &amp; Wrapped</span>
+              <span className="block text-sm text-muted">Tuần · Tháng · Năm, top bài, giờ nghe</span>
+            </span>
+          </Link>
+        </li>
+        <li>
           <Link to="/library/smart" className="flex min-h-[72px] items-center gap-3 px-4 py-2 active:bg-white/5">
             <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded bg-gradient-to-br from-fuchsia-700 to-indigo-400 text-2xl">✨</span>
             <span className="min-w-0">

@@ -101,6 +101,8 @@ export interface AudioDecoder {
 }
 
 export interface Platform {
+  /** Chia sẻ ảnh (Wrapped): web dùng Web Share/tải về, Android dùng hộp chia sẻ hệ thống. */
+  shareImage(blob: Blob, filename: string): Promise<'shared' | 'downloaded'>;
   id: 'web' | 'android';
   caps: PlatformCaps;
   library: LibrarySource;
